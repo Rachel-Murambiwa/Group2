@@ -1,5 +1,8 @@
 import { useState } from 'react';
+import RegisterView from './RegisterView'; // Import the dumb View component
 
+// SOFTWARE ENGINEERING CONCEPT: Container Component (The Logic)
+// This component handles state, validation, and API calls, maintaining Separation of Concerns.
 export default function Register() {
   const [formData, setFormData] = useState({
     fullName: '',
@@ -40,97 +43,28 @@ export default function Register() {
 
     setErrors({});
     setIsSubmitted(true);
+    
+    // API Call to the actual Backend will go here
     console.log("Valid registration data sent to server:", formData);
   };
 
+  const formFields = [
+    { name: 'fullName', label: 'Full Name', type: 'text', placeholder: 'Enter your legal name' },
+    { name: 'studentId', label: 'Student ID', type: 'text', placeholder: 'e.g., 12342026' },
+    { name: 'email', label: 'Ashesi Email', type: 'email', placeholder: 'name@ashesi.edu.gh' },
+    { name: 'password', label: 'Password', type: 'password', placeholder: '••••••••' },
+    { name: 'confirmPassword', label: 'Confirm Password', type: 'password', placeholder: '••••••••' }
+  ];
+
+  // Pass all the logic down to the View as props
   return (
-    <div className="auth-card">
-      <div className="auth-header">
-        <h2>Student Capital</h2>
-        <p>Secure peer-to-peer lending for Ashesi students.</p>
-      </div>
-
-      {!isSubmitted ? (
-        <form onSubmit={handleRegister}>
-          
-          <div className="form-group">
-            <label>Full Name</label>
-            <input
-              type="text"
-              name="fullName"
-              className="form-input"
-              value={formData.fullName}
-              onChange={handleChange}
-              placeholder="Enter your legal name"
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Student ID</label>
-            <input
-              type="text"
-              name="studentId"
-              className="form-input"
-              value={formData.studentId}
-              onChange={handleChange}
-              placeholder="e.g., 12342026"
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Ashesi Email</label>
-            <input
-              type="email"
-              name="email"
-              className={`form-input ${errors.email ? 'error' : ''}`}
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="name@ashesi.edu.gh"
-              required
-            />
-            {errors.email && <p className="error-text">{errors.email}</p>}
-          </div>
-
-          <div className="form-group">
-            <label>Password</label>
-            <input
-              type="password"
-              name="password"
-              className={`form-input ${errors.password ? 'error' : ''}`}
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="••••••••"
-              required
-            />
-            {errors.password && <p className="error-text">{errors.password}</p>}
-          </div>
-
-          <div className="form-group">
-            <label>Confirm Password</label>
-            <input
-              type="password"
-              name="confirmPassword"
-              className={`form-input ${errors.confirmPassword ? 'error' : ''}`}
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              placeholder="••••••••"
-              required
-            />
-            {errors.confirmPassword && <p className="error-text">{errors.confirmPassword}</p>}
-          </div>
-          
-          <button type="submit" className="btn-primary">
-            Create Account
-          </button>
-        </form>
-      ) : (
-        <div className="success-box">
-          <h3>Verification Sent</h3>
-          <p>We've securely dispatched a link to <strong>{formData.email}</strong>. Please check your inbox to activate your vault.</p>
-        </div>
-      )}
-    </div>
+    <RegisterView 
+      formData={formData}
+      errors={errors}
+      isSubmitted={isSubmitted}
+      formFields={formFields}
+      onChange={handleChange}
+      onSubmit={handleRegister}
+    />
   );
 }
