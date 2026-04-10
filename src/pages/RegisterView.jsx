@@ -1,5 +1,4 @@
-// SOFTWARE ENGINEERING CONCEPT: Presentational Component (The View)
-// This component ONLY cares about UI. It receives all its data and functions via props.
+import { Link } from 'react-router-dom';
 
 export default function RegisterView({ 
   formData, 
@@ -11,6 +10,14 @@ export default function RegisterView({
 }) {
   return (
     <div className="auth-card">
+      
+      {/* NEW: The Escape Hatch back to the Landing Page */}
+      <div style={{ marginBottom: '20px' }}>
+        <Link to="/" style={{ textDecoration: 'none', color: 'var(--text-muted)', fontSize: '14px', fontWeight: '600' }}>
+          &larr; Back to Home
+        </Link>
+      </div>
+
       <div className="auth-header">
         <h2>Student Capital</h2>
         <p>Secure peer-to-peer lending for Ashesi students.</p>
