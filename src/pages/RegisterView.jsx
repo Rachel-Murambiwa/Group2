@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import courtyardImage from '../assets/courtyard.jpg';
 
 export default function RegisterView({ 
   formData, 
@@ -9,7 +10,6 @@ export default function RegisterView({
   onGenerateAlias
 }) {
 
-  // NEW: Real-time password strength calculators
   const hasLength = formData.password.length >= 8;
   const hasUpper = /[A-Z]/.test(formData.password);
   const hasNumber = /\d/.test(formData.password);
@@ -17,7 +17,6 @@ export default function RegisterView({
   
   const passwordsMatch = formData.password.length > 0 && formData.password === formData.confirmPassword;
 
-  // A tiny reusable component for our checklist icons
   const CheckIcon = ({ active }) => (
     <svg className={`w-4 h-4 transition-colors duration-300 ${active ? 'text-green-500' : 'text-slate-300'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -25,17 +24,22 @@ export default function RegisterView({
   );
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-slate-50 px-4 py-12 font-sans">
-      <div className="bg-white w-full max-w-lg p-10 rounded-2xl shadow-xl border-t-4 border-ashesi-red">
+    <div 
+      className="min-h-screen w-full flex justify-center items-center font-sans bg-cover bg-center bg-fixed px-4 py-12"
+      style={{
+        backgroundImage: `linear-gradient(rgba(138, 21, 56, 0.85), rgba(10, 10, 10, 0.8)), url('${courtyardImage}')`
+      }}
+    >
+      <div className="w-full max-w-lg bg-white p-8 sm:p-10 rounded-2xl shadow-2xl border-t-4 border-ashesi-red relative z-10">
         
         <div className="mb-6">
           <Link to="/" className="text-sm font-bold text-slate-500 hover:text-ashesi-red transition-colors flex items-center gap-2 uppercase tracking-wider">
-            &larr; Back
+            &larr; Back to Home
           </Link>
         </div>
 
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-ashesi-red mb-2 tracking-tight">CharleeDash+</h2>
+        <div className="mb-8 text-center">
+          <h2 className="text-3xl font-bold text-ashesi-red mb-2 tracking-tight">Create Vault</h2>
           <p className="text-slate-500 font-medium">Secure peer-to-peer lending for Ashesi students.</p>
         </div>
 
@@ -96,7 +100,7 @@ export default function RegisterView({
               {errors.alias && <p className="text-red-500 text-xs font-bold mt-2">{errors.alias}</p>}
             </div>
 
-            {/* THE NEW PASSWORD FIELD & TRACKER */}
+            {/* PASSWORD FIELD */}
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Secure Password</label>
               <input
@@ -109,12 +113,11 @@ export default function RegisterView({
                 required
               />
               
-              {/* Dynamic Security Checklist */}
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-bold text-slate-500">
                 <div className="flex items-center gap-2"><CheckIcon active={hasLength} /> 8+ Characters</div>
                 <div className="flex items-center gap-2"><CheckIcon active={hasUpper} /> 1 Capital Letter</div>
                 <div className="flex items-center gap-2"><CheckIcon active={hasNumber} /> 1 Number</div>
-                <div className="flex items-center gap-2"><CheckIcon active={hasSpecial} /> 1 Special Character</div>
+                <div className="flex items-center gap-2"><CheckIcon active={hasSpecial} /> 1 Special Char</div>
               </div>
               {errors.password && <p className="text-red-500 text-xs font-bold mt-2">{errors.password}</p>}
             </div>
@@ -123,7 +126,6 @@ export default function RegisterView({
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1 flex justify-between">
                 Confirm Password
-                {/* Dynamic Match Text */}
                 {passwordsMatch && <span className="text-green-500">✓ Passwords Match</span>}
               </label>
               <input
@@ -143,8 +145,7 @@ export default function RegisterView({
             </button>
           </form>
         ) : (
-          // ... success state remains exactly the same
-          <div className="bg-light-gold border-2 border-rich-gold p-8 rounded-xl text-center">
+          <div className="bg-light-gold border-2 border-rich-gold p-8 rounded-2xl shadow-xl text-center">
             <h3 className="text-xl font-bold text-ashesi-red mb-3">Verification Sent</h3>
             <p className="text-slate-700 font-medium leading-relaxed">
               We've securely dispatched a link to <strong className="text-slate-900">{formData.email}</strong>. Please check your inbox to activate your vault.
