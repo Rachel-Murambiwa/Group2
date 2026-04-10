@@ -1,27 +1,27 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import './App.css';
 
-// 1. Import our actual, finished pages
+// 1. We import the REAL pages here
 import Landing from './pages/Landing';
 import Register from './pages/Register';
-import Login from './pages/Login'; // <-- This is the missing link!
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
 
-// 2. Keep only the placeholders for pages we haven't built yet
-const Verify = () => <div className="page-container"><h2>Check your email to verify...</h2></div>;
-const Dashboard = () => <div className="page-container"><h2>Anonymous Lending Dashboard</h2></div>;
+// 2. Only the Verify placeholder remains (notice there is NO Dashboard placeholder here!)
+const Verify = () => (
+  <div className="min-h-screen flex items-center justify-center bg-slate-50">
+    <h2 className="text-2xl font-bold text-ashesi-red">Check your email to verify...</h2>
+  </div>
+);
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Landing />} />
-        
-        {/* We wrap the auth pages in .app-layout so they stay centered and premium */}
-        <Route path="/register" element={<div className="app-layout"><Register /></div>} />
-        <Route path="/login" element={<div className="app-layout"><Login /></div>} />
-        
-        <Route path="/verify" element={<div className="app-layout"><Verify /></div>} />
-        <Route path="/dashboard" element={<div className="app-layout"><Dashboard /></div>} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/verify" element={<Verify />} />
+        <Route path="/dashboard" element={<Dashboard />} /> 
       </Routes>
     </Router>
   );
