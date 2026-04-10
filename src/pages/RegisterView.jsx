@@ -4,18 +4,33 @@ export default function RegisterView({
   formData, 
   errors, 
   isSubmitted, 
-  formFields, 
   onChange, 
-  onSubmit 
+  onSubmit,
+  onGenerateAlias
 }) {
+
+  // NEW: Real-time password strength calculators
+  const hasLength = formData.password.length >= 8;
+  const hasUpper = /[A-Z]/.test(formData.password);
+  const hasNumber = /\d/.test(formData.password);
+  const hasSpecial = /[@$!%*?&#^]/.test(formData.password);
+  
+  const passwordsMatch = formData.password.length > 0 && formData.password === formData.confirmPassword;
+
+  // A tiny reusable component for our checklist icons
+  const CheckIcon = ({ active }) => (
+    <svg className={`w-4 h-4 transition-colors duration-300 ${active ? 'text-green-500' : 'text-slate-300'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+    </svg>
+  );
+
   return (
-    <div className="flex justify-center items-center min-h-screen bg-slate-50 px-4 py-12">
+    <div className="flex justify-center items-center min-h-screen bg-slate-50 px-4 py-12 font-sans">
       <div className="bg-white w-full max-w-lg p-10 rounded-2xl shadow-xl border-t-4 border-ashesi-red">
         
-        {/* The Escape Hatch */}
         <div className="mb-6">
-          <Link to="/" className="text-sm font-semibold text-slate-500 hover:text-ashesi-red transition-colors flex items-center gap-2">
-            &larr; Back to Home
+          <Link to="/" className="text-sm font-bold text-slate-500 hover:text-ashesi-red transition-colors flex items-center gap-2 uppercase tracking-wider">
+            &larr; Back
           </Link>
         </div>
 
@@ -27,27 +42,108 @@ export default function RegisterView({
         {!isSubmitted ? (
           <form onSubmit={onSubmit} className="space-y-5">
             
-            {formFields.map((field) => (
-              <div key={field.name}>
-                <label className="block text-sm font-semibold text-slate-700 uppercase tracking-wide mb-2">{field.label}</label>
+            {/* Real Name */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Full Legal Name (Kept Private)</label>
+              <input
+                type="text"
+                name="fullName"
+                className={`w-full p-4 border-2 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:border-rich-gold transition-all text-slate-800 font-bold ${errors.fullName ? 'border-red-500' : 'border-slate-200'}`}
+                value={formData.fullName}
+                onChange={onChange}
+                placeholder="First Last"
+                required
+              />
+            </div>
+
+            {/* Ashesi Email */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Ashesi Email</label>
+              <input
+                type="email"
+                name="email"
+                className={`w-full p-4 border-2 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:border-rich-gold transition-all text-slate-800 font-bold ${errors.email ? 'border-red-500' : 'border-slate-200'}`}
+                value={formData.email}
+                onChange={onChange}
+                placeholder="name@ashesi.edu.gh"
+                required
+              />
+              {errors.email && <p className="text-red-500 text-xs font-bold mt-2">{errors.email}</p>}
+            </div>
+
+            {/* ALIAS FIELD */}
+            <div className="bg-slate-100 p-4 rounded-xl border border-slate-200">
+              <label className="block text-xs font-bold text-ashesi-red uppercase tracking-wide mb-1">Public Anonymous Alias</label>
+              <p className="text-xs text-slate-500 mb-3 font-medium">This is the only name other students will see.</p>
+              <div className="flex gap-3">
                 <input
-                  type={field.type}
-                  name={field.name}
-                  className={`w-full p-4 border-2 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:border-rich-gold focus:ring-4 focus:ring-rich-gold/20 transition-all text-slate-800 ${errors[field.name] ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
-                  value={formData[field.name]}
+                  type="text"
+                  name="alias"
+                  className={`flex-1 p-3 border-2 rounded-lg bg-white focus:outline-none focus:border-rich-gold transition-all text-slate-800 font-bold ${errors.alias ? 'border-red-500' : 'border-slate-200'}`}
+                  value={formData.alias}
                   onChange={onChange}
-                  placeholder={field.placeholder}
+                  placeholder="e.g. Star2003"
                   required
                 />
-                {errors[field.name] && <p className="text-red-500 text-xs font-bold mt-2">{errors[field.name]}</p>}
+                <button 
+                  type="button" 
+                  onClick={onGenerateAlias}
+                  className="px-4 py-3 bg-slate-800 text-white font-bold rounded-lg uppercase tracking-wider text-xs hover:bg-rich-gold transition-colors"
+                >
+                  Generate
+                </button>
               </div>
-            ))}
+              {errors.alias && <p className="text-red-500 text-xs font-bold mt-2">{errors.alias}</p>}
+            </div>
+
+            {/* THE NEW PASSWORD FIELD & TRACKER */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Secure Password</label>
+              <input
+                type="password"
+                name="password"
+                className={`w-full p-4 border-2 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:border-rich-gold transition-all text-slate-800 font-bold ${errors.password ? 'border-red-500' : 'border-slate-200'}`}
+                value={formData.password}
+                onChange={onChange}
+                placeholder="••••••••"
+                required
+              />
+              
+              {/* Dynamic Security Checklist */}
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-bold text-slate-500">
+                <div className="flex items-center gap-2"><CheckIcon active={hasLength} /> 8+ Characters</div>
+                <div className="flex items-center gap-2"><CheckIcon active={hasUpper} /> 1 Capital Letter</div>
+                <div className="flex items-center gap-2"><CheckIcon active={hasNumber} /> 1 Number</div>
+                <div className="flex items-center gap-2"><CheckIcon active={hasSpecial} /> 1 Special Character</div>
+              </div>
+              {errors.password && <p className="text-red-500 text-xs font-bold mt-2">{errors.password}</p>}
+            </div>
+
+            {/* CONFIRM PASSWORD FIELD */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1 flex justify-between">
+                Confirm Password
+                {/* Dynamic Match Text */}
+                {passwordsMatch && <span className="text-green-500">✓ Passwords Match</span>}
+              </label>
+              <input
+                type="password"
+                name="confirmPassword"
+                className={`w-full p-4 border-2 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:border-rich-gold transition-all text-slate-800 font-bold ${errors.confirmPassword ? 'border-red-500' : (passwordsMatch ? 'border-green-400' : 'border-slate-200')}`}
+                value={formData.confirmPassword}
+                onChange={onChange}
+                placeholder="••••••••"
+                required
+              />
+              {errors.confirmPassword && <p className="text-red-500 text-xs font-bold mt-2">{errors.confirmPassword}</p>}
+            </div>
             
             <button type="submit" className="w-full py-4 mt-4 bg-ashesi-red text-white font-bold rounded-lg uppercase tracking-wider hover:bg-ashesi-red-dark hover:-translate-y-1 hover:shadow-lg transition-all">
-              Create Account
+              Create Vault Account
             </button>
           </form>
         ) : (
+          // ... success state remains exactly the same
           <div className="bg-light-gold border-2 border-rich-gold p-8 rounded-xl text-center">
             <h3 className="text-xl font-bold text-ashesi-red mb-3">Verification Sent</h3>
             <p className="text-slate-700 font-medium leading-relaxed">
@@ -59,7 +155,7 @@ export default function RegisterView({
         {!isSubmitted && (
           <p className="text-center mt-8 text-sm font-medium text-slate-500">
             Already have an account?{' '}
-            <Link to="/login" className="text-ashesi-red font-bold hover:text-rich-gold transition-colors">
+            <Link to="/login" className="text-ashesi-red font-bold hover:text-rich-gold transition-colors uppercase tracking-wider">
               Sign In
             </Link>
           </p>

@@ -1,19 +1,29 @@
 import { useState } from 'react';
-import RegisterView from './RegisterView'; // Import the dumb View component
+import RegisterView from './RegisterView';
 
-// SOFTWARE ENGINEERING CONCEPT: Container Component (The Logic)
-// This component handles state, validation, and API calls, maintaining Separation of Concerns.
 export default function Register() {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
-    studentId: '',
+    alias: '',
     password: '',
-    confirmPassword: '',
+    confirmPassword: '', // <-- NEW: Tracking the confirmation
   });
   
   const [errors, setErrors] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
+
+  const handleGenerateAlias = () => {
+    const prefixes = ['Star', 'Micro', 'Vault', 'Cipher', 'Ghost', 'Nova', 'Echo', 'Neon'];
+    const randomPrefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+    const randomNumber = Math.floor(Math.random() * 900) + 100;
+    
+    setFormData({ ...formData, alias: `${randomPrefix}${randomNumber}` });
+    
+    if (errors.alias) {
+      setErrors({ ...errors, alias: '' });
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -27,13 +37,24 @@ export default function Register() {
     const newErrors = {};
 
     if (!formData.email.endsWith('@ashesi.edu.gh')) {
-      newErrors.email = 'Only Ashesi University emails are allowed';
+      newErrors.email = 'You must use an official Ashesi email.';
     }
-    if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
+    if (!formData.alias || formData.alias.length < 3) {
+      newErrors.alias = 'Please enter or generate an anonymous alias.';
     }
+
+    // NEW: Strict Password Validation Check
+    const hasUpper = /[A-Z]/.test(formData.password);
+    const hasNumber = /\d/.test(formData.password);
+    const hasSpecial = /[@$!%*?&#^]/.test(formData.password);
+    
+    if (formData.password.length < 8 || !hasUpper || !hasNumber || !hasSpecial) {
+      newErrors.password = 'Please ensure your password meets all security requirements.';
+    }
+
+    // NEW: Match Check
     if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+      newErrors.confirmPassword = 'Passwords do not match.';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -41,30 +62,18 @@ export default function Register() {
       return;
     }
 
-    setErrors({});
+    console.log("Registering user:", formData);
     setIsSubmitted(true);
-    
-    // API Call to the actual Backend will go here
-    console.log("Valid registration data sent to server:", formData);
   };
 
-  const formFields = [
-    { name: 'fullName', label: 'Full Name', type: 'text', placeholder: 'Enter your legal name' },
-    { name: 'studentId', label: 'Student ID', type: 'text', placeholder: 'e.g., 12342026' },
-    { name: 'email', label: 'Ashesi Email', type: 'email', placeholder: 'name@ashesi.edu.gh' },
-    { name: 'password', label: 'Password', type: 'password', placeholder: '••••••••' },
-    { name: 'confirmPassword', label: 'Confirm Password', type: 'password', placeholder: '••••••••' }
-  ];
-
-  // Pass all the logic down to the View as props
   return (
-    <RegisterView 
+    <RegisterView
       formData={formData}
       errors={errors}
       isSubmitted={isSubmitted}
-      formFields={formFields}
       onChange={handleChange}
       onSubmit={handleRegister}
+      onGenerateAlias={handleGenerateAlias} 
     />
   );
 }
