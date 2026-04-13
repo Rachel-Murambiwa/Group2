@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom'; // <-- NEW: Added Link here!
 
-// Tailwind-styled placeholder for the Borrower mode
 // 1. We define some dummy data to simulate our backend database
 const AVAILABLE_VAULTS = [
   { id: 1, alias: "Vault #804", amount: 500, interest: 5, duration: "14 Days", rating: "★★★★★" },
@@ -74,7 +73,6 @@ const BorrowerFeed = () => (
   </div>
 );
 
-// Tailwind-styled placeholder for the Lender mode
 // 1. Dummy data for the Lender's active investments
 const ACTIVE_INVESTMENTS = [
   { id: 101, alias: "Vault #804", amount: 500, return: "+GHS 25", status: "Active", due: "In 12 Days" },
@@ -185,7 +183,10 @@ export default function Dashboard() {
       <header className="flex justify-between items-center px-10 py-4 bg-white shadow-sm border-b-2 border-slate-200 z-10">
         
         <div className="logo">
-          <h2 className="text-ashesi-red text-2xl font-bold tracking-tight m-0">CharleeDash+</h2>
+          {/* NEW: Logo is now a clickable link back to the dashboard */}
+          <Link to="/dashboard" className="text-ashesi-red text-2xl font-bold tracking-tight m-0 hover:text-ashesi-red-dark transition-colors text-decoration-none">
+            CharleeDash+
+          </Link>
         </div>
 
         {/* The Toggle Switch translated to Tailwind */}
@@ -212,13 +213,19 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* The Logout Button translated to Tailwind */}
-        <button 
-          onClick={handleLogout} 
-          className="px-5 py-2.5 bg-transparent border-2 border-slate-200 rounded-lg text-slate-500 font-bold text-sm tracking-wide uppercase transition-all hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-        >
-          Sign Out
-        </button>
+        {/* NEW: Profile Link Avatar added next to Sign Out */}
+        <div className="flex items-center gap-4">
+          <Link to="/profile" className="w-10 h-10 rounded-full bg-gradient-to-tr from-ashesi-red to-rich-gold flex items-center justify-center text-white font-bold shadow-md hover:shadow-lg transition-all hover:scale-105 text-decoration-none">
+            S
+          </Link>
+          
+          <button 
+            onClick={handleLogout} 
+            className="px-5 py-2.5 bg-transparent border-2 border-slate-200 rounded-lg text-slate-500 font-bold text-sm tracking-wide uppercase transition-all hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+          >
+            Sign Out
+          </button>
+        </div>
       </header>
 
       {/* Main Content Area */}
