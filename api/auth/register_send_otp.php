@@ -1,5 +1,6 @@
 <?php
 date_default_timezone_set('Africa/Accra');
+
 // 1. HEADERS - Essential for React to talk to PHP
 header("Access-Control-Allow-Origin: http://localhost:5173");
 header("Content-Type: application/json; charset=UTF-8");
@@ -71,11 +72,20 @@ if(!empty($data->phone) && !empty($data->fullName) && !empty($data->password)) {
     $stmt->bindParam(":otp", $otp);
 
     if($stmt->execute()) {
-        // Success!
+        
+        // ---- 5. TRIGGER THE SMS ----
+        // Format the phone number (change 0... to 233...)
+        $formattedPhone = preg_replace('/^0/', '233', $data->phone); 
+        
+        // Send it!
+        sendOTP_SMS($formattedPhone, $otp);
+        // -----------------------------
+
+        // Success Response to React
         http_response_code(200);
         echo json_encode([
             "message" => "OTP Sent", 
-            "debug_otp" => $otp // Check this in the Network tab to verify!
+            "debug_otp" => $otp // Keep this for now so you can test without SMS credits!
         ]);
     } else {
         http_response_code(500);
@@ -84,5 +94,38 @@ if(!empty($data->phone) && !empty($data->fullName) && !empty($data->password)) {
 } else {
     http_response_code(400);
     echo json_encode(["error" => "Incomplete data."]);
+}
+
+// ---------------------------------------------------------
+// Helper function to send SMS via Arkesel API
+// ---------------------------------------------------------
+function sendOTP_SMS($phone, $otp) {
+    // 1. Get these from your SMS provider dashboard
+    $apiKey = 'bEdod25DZUJkYkVnc1NnYlpxWWY'; 
+    $senderId = 'VaultAuth'; // Sender ID (Max 11 characters)
+
+    $message = "Your CharleeDash+ verification code is: $otp. It expires in 15 minutes. Do not share this code.";
+
+    $url = 'https://sms.arkesel.com/api/v2/sms/send';
+    
+    $data = [
+        'sender' => $senderId,
+        'message' => $message,
+        'recipients' => [$phone]
+    ];
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'api-key: ' . $apiKey,
+        'Content-Type: application/json'
+    ]);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    
+    $response = curl_exec($ch);
+    curl_close($ch);
+    
+    return $response; 
 }
 ?>
