@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom'; // <-- NEW: Added Link here!
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
-// 1. We define some dummy data to simulate our backend database
+// 1. DUMMY DATA: Borrower Feed
 const AVAILABLE_VAULTS = [
   { id: 1, alias: "Vault #804", amount: 500, interest: 5, duration: "14 Days", rating: "★★★★★" },
   { id: 2, alias: "Vault #211", amount: 200, interest: 0, duration: "7 Days", rating: "★★★★☆" },
@@ -9,7 +9,7 @@ const AVAILABLE_VAULTS = [
   { id: 4, alias: "Vault #405", amount: 150, interest: 2, duration: "5 Days", rating: "★★★☆☆" },
 ];
 
-// 2. The upgraded Borrower mode UI
+// 2. COMPONENT: Borrower Feed UI
 const BorrowerFeed = () => (
   <div className="space-y-6">
     <div className="flex justify-between items-end border-b border-slate-200 pb-4">
@@ -24,14 +24,12 @@ const BorrowerFeed = () => (
       </div>
     </div>
 
-    {/* CSS Grid for the Vault Cards */}
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {AVAILABLE_VAULTS.map((vault) => (
         <div 
           key={vault.id} 
           className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-xl hover:border-rich-gold transition-all duration-300 group flex flex-col justify-between relative overflow-hidden"
         >
-          {/* Subtle decorative background accent */}
           <div className="absolute top-0 right-0 w-24 h-24 bg-rose-50 rounded-bl-full -z-10 opacity-50 transition-transform group-hover:scale-110"></div>
 
           <div>
@@ -73,17 +71,15 @@ const BorrowerFeed = () => (
   </div>
 );
 
-// 1. Dummy data for the Lender's active investments
+// 3. DUMMY DATA: Lender Portfolio
 const ACTIVE_INVESTMENTS = [
   { id: 101, alias: "Vault #804", amount: 500, return: "+GHS 25", status: "Active", due: "In 12 Days" },
   { id: 102, alias: "Vault #211", amount: 200, return: "+GHS 0", status: "Paid", due: "Completed" },
 ];
 
-// 2. The upgraded Lender mode UI
+// 4. COMPONENT: Lender Portfolio UI
 const LenderPortfolio = () => (
   <div className="space-y-8">
-    
-    {/* Header */}
     <div className="flex justify-between items-end border-b border-slate-200 pb-4">
       <div>
         <h3 className="text-3xl font-bold text-slate-800 tracking-tight">Your Portfolio</h3>
@@ -93,7 +89,6 @@ const LenderPortfolio = () => (
       </div>
     </div>
 
-    {/* Quick Stats Row */}
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center">
         <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Total Deployed</p>
@@ -109,10 +104,7 @@ const LenderPortfolio = () => (
       </div>
     </div>
 
-    {/* Main Grid: Form (Left) and List (Right) */}
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      
-      {/* Create Vault Form */}
       <div className="lg:col-span-1 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-1 bg-rich-gold"></div>
         <h4 className="text-lg font-bold text-slate-800 mb-5">Create New Vault</h4>
@@ -138,7 +130,6 @@ const LenderPortfolio = () => (
         </form>
       </div>
 
-      {/* Active Investments List */}
       <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
         <h4 className="text-lg font-bold text-slate-800 mb-5">Active Contracts</h4>
         <div className="space-y-4">
@@ -163,33 +154,42 @@ const LenderPortfolio = () => (
           ))}
         </div>
       </div>
-
     </div>
   </div>
 );
 
+// 5. MAIN COMPONENT: Dashboard
 export default function Dashboard() {
   const [mode, setMode] = useState('borrower'); 
   const navigate = useNavigate();
+  const [alias, setAlias] = useState(""); 
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    
+    if (savedUser) {
+      const parsedUser = JSON.parse(savedUser);
+      setAlias(parsedUser.alias);
+    } else {
+      navigate('/login');
+    }
+  }, [navigate]);
 
   const handleLogout = () => {
+    localStorage.removeItem('user');
     navigate('/');
   };
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-slate-50 font-sans">
       
-      {/* Top Navigation Bar */}
       <header className="flex justify-between items-center px-10 py-4 bg-white shadow-sm border-b-2 border-slate-200 z-10">
-        
         <div className="logo">
-          {/* NEW: Logo is now a clickable link back to the dashboard */}
           <Link to="/dashboard" className="text-ashesi-red text-2xl font-bold tracking-tight m-0 hover:text-ashesi-red-dark transition-colors text-decoration-none">
             CharleeDash+
           </Link>
         </div>
 
-        {/* The Toggle Switch translated to Tailwind */}
         <div className="flex bg-slate-100 rounded-full p-1 shadow-inner border border-slate-200">
           <button 
             className={`px-8 py-2.5 rounded-full font-bold text-sm tracking-wide transition-all duration-300 uppercase ${
@@ -213,10 +213,17 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* NEW: Profile Link Avatar added next to Sign Out */}
         <div className="flex items-center gap-4">
-          <Link to="/profile" className="w-10 h-10 rounded-full bg-gradient-to-tr from-ashesi-red to-rich-gold flex items-center justify-center text-white font-bold shadow-md hover:shadow-lg transition-all hover:scale-105 text-decoration-none">
-            S
+          <Link 
+            to="/profile" 
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-50 border border-slate-100 hover:border-rich-gold hover:bg-white transition-all text-decoration-none group"
+          >
+            <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-ashesi-red to-rich-gold flex items-center justify-center text-white font-bold text-[10px] shadow-sm">
+              {alias ? alias.charAt(0).toUpperCase() : "?"}
+            </div>
+            <span className="font-bold text-sm text-slate-700 tracking-wide group-hover:text-rich-gold transition-colors">
+              {alias || "Loading..."}
+            </span>
           </Link>
           
           <button 
@@ -228,7 +235,6 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Main Content Area */}
       <main className="flex-1 p-10 max-w-5xl mx-auto w-full mt-4">
         {mode === 'borrower' ? <BorrowerFeed /> : <LenderPortfolio />}
       </main>

@@ -1,21 +1,41 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function Profile() {
-  // Dummy data for the profile
-  const userProfile = {
-    alias: "Star2003",
+  const navigate = useNavigate();
+
+  // We set the initial state. The stats are still hardcoded (for now), 
+  // but the 'alias' starts blank until we load it.
+  const [userProfile, setUserProfile] = useState({
+    alias: "", 
     tier: "Gold Vault",
     trustScore: 850,
     nextTierAt: 1000,
     vaultsFunded: 12,
     repaymentRate: "100%",
     totalImpact: "GHS 4,500"
-  };
+  });
+
+  // NEW: Fetch the real user data when the page loads
+  useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    
+    if (savedUser) {
+      const parsedUser = JSON.parse(savedUser);
+      // Update our profile state with the real alias from the database
+      setUserProfile(prevProfile => ({
+        ...prevProfile,
+        alias: parsedUser.alias
+      }));
+    } else {
+      // Security measure: If they aren't logged in, kick them back to login
+      navigate('/login');
+    }
+  }, [navigate]);
 
   const progressPercentage = (userProfile.trustScore / userProfile.nextTierAt) * 100;
 
-  // NEW: State for our settings panel
+  // State for our settings panel
   const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
   const [emailNotifs, setEmailNotifs] = useState(true);
   const [twoFactor, setTwoFactor] = useState(false);
@@ -23,10 +43,12 @@ export default function Profile() {
   const handlePasswordChange = (e) => {
     e.preventDefault();
     console.log("Updating password...");
-    // Reset fields after "saving"
     setPasswords({ current: '', new: '', confirm: '' });
     alert("Password updated successfully!");
   };
+
+  // Prevent crashing while the alias loads
+  const firstLetter = userProfile.alias ? userProfile.alias.charAt(0).toUpperCase() : "?";
 
   return (
     <div className="min-h-screen w-full bg-slate-50 font-sans pb-12">
@@ -49,11 +71,14 @@ export default function Profile() {
         {/* The Identity Header */}
         <div className="flex items-center gap-6 bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
           <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-ashesi-red to-rich-gold flex items-center justify-center shadow-lg text-white text-3xl font-bold">
-            {userProfile.alias.charAt(0)}
+            {/* Dynamically display the first letter of their real alias */}
+            {firstLetter}
           </div>
           <div>
             <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Anonymous Alias</p>
-            <h1 className="text-4xl font-bold text-slate-800">{userProfile.alias}</h1>
+            <h1 className="text-4xl font-bold text-slate-800">
+              {userProfile.alias || "Loading..."}
+            </h1>
             <p className="text-slate-500 font-medium mt-1">Active contributor to the campus economy.</p>
           </div>
         </div>
@@ -161,7 +186,7 @@ export default function Profile() {
               </form>
             </div>
 
-            {/* Right Side: Toggles for "Etc" */}
+            {/* Right Side: Toggles */}
             <div>
               <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Account Settings</h4>
               <div className="space-y-6">
