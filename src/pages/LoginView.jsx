@@ -22,19 +22,26 @@ export default function LoginView({ formData, errors, onChange, onSubmit }) {
           <p className="text-slate-500 font-medium">Access your Student Capital vault.</p>
         </div>
 
+        {/* Global Error Message (e.g., Wrong Password, Not Verified) */}
+        {errors.auth && (
+          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm font-bold rounded">
+            {errors.auth}
+          </div>
+        )}
+
         <form onSubmit={onSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-bold text-slate-600 uppercase tracking-wide mb-2">Ashesi Email</label>
+            <label className="block text-sm font-bold text-slate-600 uppercase tracking-wide mb-2">Phone Number</label>
             <input
-              type="email"
-              name="email"
-              className={`w-full p-4 border-2 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:border-rich-gold focus:ring-4 focus:ring-rich-gold/20 transition-all text-slate-800 font-bold ${errors.email ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
-              value={formData.email}
+              type="tel"
+              name="phone"
+              className={`w-full p-4 border-2 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:border-rich-gold focus:ring-4 focus:ring-rich-gold/20 transition-all text-slate-800 font-bold ${errors.phone ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
+              value={formData.phone}
               onChange={onChange}
-              placeholder="name@ashesi.edu.gh"
+              placeholder="024XXXXXXX"
               required
             />
-            {errors.email && <p className="text-red-500 text-xs font-bold mt-2">{errors.email}</p>}
+            {errors.phone && <p className="text-red-500 text-xs font-bold mt-2">{errors.phone}</p>}
           </div>
 
           <div>

@@ -40,14 +40,12 @@ export default function Register() {
     }
   };
 
-  // Missing function that was causing the blank screen
   const handleBackToStep1 = () => {
     setStep(1);
     setOtp(['', '', '', '', '', '']);
     setErrors({});
   };
 
-  // STEP 1: Registration & Send OTP
   const handleRegister = async (e) => {
     e.preventDefault();
     const newErrors = {};
@@ -69,6 +67,7 @@ export default function Register() {
       newErrors.password = 'Password must be 8+ characters with uppercase, number, and symbol.';
     }
 
+    // Passwords Match Check
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match.';
     }
@@ -79,7 +78,6 @@ export default function Register() {
     }
 
     try {
-      // NOTE: Make sure this URL matches your actual XAMPP folder name!
       const response = await fetch('http://localhost/StudentLendingSystem/Group2/api/auth/register_send_otp.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -97,7 +95,6 @@ export default function Register() {
     }
   };
 
-  // STEP 2: Verify the 6-digit OTP
   const handleVerifyOTP = async (e) => {
     e.preventDefault();
     const otpString = otp.join('');
@@ -115,8 +112,7 @@ export default function Register() {
       });
 
       if (response.ok) {
-        alert("Account Verified!");
-        navigate('/login');
+        setStep(3); // Success Screen
       } else {
         const data = await response.json();
         setErrors({ otp: data.error || "Invalid OTP code." });

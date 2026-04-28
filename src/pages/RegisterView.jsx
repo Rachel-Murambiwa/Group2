@@ -1,8 +1,10 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function RegisterView({ 
   step, formData, otp, errors, onChange, onOtpChange, onSubmit, onVerify, onGenerateAlias, onBackToStep1 
 }) {
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-6 lg:px-8 font-sans relative">
       
@@ -18,16 +20,17 @@ export default function RegisterView({
           CharleeDash+
         </h2>
         <p className="mt-2 text-center text-sm text-slate-600">
-          {step === 1 ? "Secure peer-to-peer lending for everyone." : "Verification required."}
+          {step === 1 ? "Secure peer-to-peer lending for everyone." : 
+           step === 2 ? "Verification required." : "Account Secured."}
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-6 shadow-xl border border-slate-100 rounded-3xl sm:px-10">
           
+          {/* STEP 1: REGISTRATION FORM */}
           {step === 1 ? (
             <form className="space-y-5" onSubmit={onSubmit}>
-              
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Full Name</label>
                 <input
@@ -74,7 +77,6 @@ export default function RegisterView({
                 {errors.alias && <p className="mt-2 text-xs text-red-500 font-bold">{errors.alias}</p>}
               </div>
 
-              {/* Enhanced Password Section */}
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Create Password</label>
@@ -105,6 +107,12 @@ export default function RegisterView({
                     onChange={onChange}
                     className="mt-1 block w-full px-4 py-3 border-2 border-slate-100 rounded-xl focus:ring-0 focus:border-rich-gold bg-slate-50 focus:bg-white transition-colors font-medium text-slate-800"
                   />
+                  {/* Real-time Match Check */}
+                  {formData.confirmPassword && (
+                    <p className={`mt-1 text-[10px] font-bold uppercase ${formData.password === formData.confirmPassword ? 'text-green-500' : 'text-red-500'}`}>
+                      {formData.password === formData.confirmPassword ? '✓ Passwords Match' : '✗ Passwords Do Not Match'}
+                    </p>
+                  )}
                   {errors.confirmPassword && <p className="mt-2 text-xs text-red-500 font-bold">{errors.confirmPassword}</p>}
                 </div>
               </div>
@@ -117,7 +125,7 @@ export default function RegisterView({
               </button>
             </form>
 
-          ) : (
+          ) : step === 2 ? (
 
             /* STEP 2: OTP VERIFICATION SCREEN */
             <form className="space-y-6" onSubmit={onVerify}>
@@ -164,6 +172,32 @@ export default function RegisterView({
                 </button>
               </div>
             </form>
+
+          ) : (
+
+            /* STEP 3: SUCCESS MESSAGE (NO POP-UPS) */
+            <div className="text-center py-6 space-y-6 animate-in fade-in zoom-in duration-300">
+              <div className="flex justify-center">
+                <div className="h-24 w-24 bg-green-50 rounded-full flex items-center justify-center border-4 border-white shadow-inner">
+                  <span className="text-5xl">🛡️</span>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-2xl font-black text-slate-800">Vault Activated</h3>
+                <p className="mt-3 text-sm text-slate-600 leading-relaxed">
+                  Congratulations, <span className="font-bold text-ashesi-red">{formData.alias}</span>! 
+                  Your account is verified and your identity is now protected.
+                </p>
+              </div>
+
+              <button
+                onClick={() => navigate('/login')}
+                className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-slate-800 hover:bg-rich-gold transition-all transform active:scale-95"
+              >
+                Sign In to Your Vault
+              </button>
+            </div>
           )}
 
           {step === 1 && (

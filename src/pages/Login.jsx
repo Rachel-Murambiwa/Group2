@@ -2,12 +2,11 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LoginView from './LoginView';
 
-// SOFTWARE ENGINEERING CONCEPT: Container Component
 export default function Login() {
-  const navigate = useNavigate(); // React Router's navigation hook
+  const navigate = useNavigate(); 
   
   const [formData, setFormData] = useState({
-    email: '',
+    phone: '', // Changed from email
     password: '',
   });
   
@@ -15,19 +14,19 @@ export default function Login() {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    // Clear errors when the user starts typing
     if (errors[e.target.name]) {
       setErrors({ ...errors, [e.target.name]: '' });
     }
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     const newErrors = {};
 
-    // Domain validation check
-    if (!formData.email.endsWith('@ashesi.edu.gh')) {
-      newErrors.email = 'Please use your official Ashesi student email.';
+    // Domain validation check (Updated to Phone)
+    const phoneRegex = /^0\d{9}$/;
+    if (!phoneRegex.test(formData.phone)) {
+      newErrors.phone = 'Please enter a valid 10-digit Ghanaian number.';
     }
     
     // Basic password presence check
@@ -40,11 +39,28 @@ export default function Login() {
       return;
     }
 
-    // In a real scenario, you would await an API call here.
-    console.log("Authenticating user:", formData.email);
-    
-    // If successful, push them into the application dashboard!
-    navigate('/dashboard');
+    try {
+      // Connect to the upcoming PHP backend
+      const response = await fetch('http://localhost/StudentLendingSystem/Group2/api/auth/login.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // SUCCESS: Save user session data (like their Alias) to localStorage
+        localStorage.setItem('user', JSON.stringify(data.user));
+        // Push them into the application dashboard!
+        navigate('/dashboard');
+      } else {
+        // Show specific error from backend (e.g., "Invalid password" or "Account not verified")
+        setErrors({ auth: data.error || "Login failed." });
+      }
+    } catch (err) {
+      setErrors({ auth: "Cannot connect to server. Is XAMPP running?" });
+    }
   };
 
   return (
