@@ -1,4 +1,5 @@
 <?php
+date_default_timezone_set('Africa/Accra');
 // 1. HEADERS - Essential for React to talk to PHP
 header("Access-Control-Allow-Origin: http://localhost:5173");
 header("Content-Type: application/json; charset=UTF-8");
