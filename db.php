@@ -1,5 +1,13 @@
 <?php
 
+require_once __DIR__ . '/api.php';
+
+api_cors();
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
  
 $host = 'localhost';
 $db   = 'LoanSystem';
@@ -15,7 +23,5 @@ $options = array(
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8mb4", $user, $pass, $options);
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(array('success' => false, 'message' => 'Database connection failed: ' . $e->getMessage()));
-    exit;
+    api_json(array('success' => false, 'message' => 'Database connection failed: ' . $e->getMessage()), 500);
 }

@@ -1,25 +1,15 @@
 <?php
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(array('success' => false, 'message' => 'Method not allowed.'));
-    exit;
-}
-
 require_once 'db.php';
+api_cors('POST');
+api_require_method('POST');
 require_once 'auth.php';
 require_once 'credit_score.php';
 
 //Read input
-$body       = json_decode(file_get_contents('php://input'), true);
-$loanID     = $body['loanID']     ?? '';
-$amountPaid = $body['amountPaid'] ?? '';
+$body       = api_input();
+$loanID     = api_value($body, array('loanID', 'loanId', 'loan_id', 'id'), '');
+$amountPaid = api_value($body, array('amountPaid', 'amount_paid', 'amount', 'paymentAmount', 'payment_amount'), '');
 
 //Validate
 $errors = array();
@@ -28,9 +18,7 @@ if (empty($amountPaid)) $errors[] = 'Amount paid is required.';
 if ($amountPaid <= 0)   $errors[] = 'Amount must be greater than zero.';
 
 if (!empty($errors)) {
-    http_response_code(422);
-    echo json_encode(array('success' => false, 'errors' => $errors));
-    exit;
+    api_json(array('success' => false, 'message' => implode(' ', $errors), 'errors' => $errors), 422);
 }
 
 //Find the loan
@@ -39,29 +27,21 @@ try {
     $stmt->execute(array($loanID));
     $loan = $stmt->fetch();
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(array('success' => false, 'message' => 'Error finding loan: ' . $e->getMessage()));
-    exit;
+    api_json(array('success' => false, 'message' => 'Error finding loan: ' . $e->getMessage()), 500);
 }
 
 if (!$loan) {
-    http_response_code(404);
-    echo json_encode(array('success' => false, 'message' => 'Loan not found.'));
-    exit;
+    api_json(array('success' => false, 'message' => 'Loan not found.'), 404);
 }
 
 // Make sure this is the borrower's loan
 if ($loan['Borrower_ID'] !== $loggedInUser['User_ID']) {
-    http_response_code(403);
-    echo json_encode(array('success' => false, 'message' => 'This is not your loan.'));
-    exit;
+    api_json(array('success' => false, 'message' => 'This is not your loan.'), 403);
 }
 
 // Check loan is active
 if ($loan['Loan_Status'] !== 'disbursed') {
-    http_response_code(400);
-    echo json_encode(array('success' => false, 'message' => 'Only disbursed loans can be repaid.'));
-    exit;
+    api_json(array('success' => false, 'message' => 'Only disbursed loans can be repaid.'), 400);
 }
 
 // Check if repayment is late (past the loan duration)
@@ -90,9 +70,7 @@ try {
     $stmt = $pdo->prepare('INSERT INTO Transactions (Transaction_Type, Loan_ID, Transaction_Date) VALUES ("repayment", ?, ?)');
     $stmt->execute(array($loanID, $todayStr));
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(array('success' => false, 'message' => 'Error recording repayment: ' . $e->getMessage()));
-    exit;
+    api_json(array('success' => false, 'message' => 'Error recording repayment: ' . $e->getMessage()), 500);
 }
 
 // Check if loan is fully paid
@@ -110,9 +88,7 @@ try {
         $loanStatus = 'disbursed';
     }
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(array('success' => false, 'message' => 'Error updating loan status: ' . $e->getMessage()));
-    exit;
+    api_json(array('success' => false, 'message' => 'Error updating loan status: ' . $e->getMessage()), 500);
 }
 
 //Update credit score
@@ -126,8 +102,7 @@ if ($isLate) {
 }
 
 //Respond
-http_response_code(200);
-echo json_encode(array(
+api_json(array(
     'success'         => true,
     'message'         => 'Repayment recorded successfully!',
     'loanID'          => $loanID,
@@ -138,4 +113,11 @@ echo json_encode(array(
     'repaymentStatus' => $repaymentStatus,
     'newCreditScore'  => $newCreditScore,
     'creditMessage'   => $creditMessage,
+    'repayment'       => api_repayment(array(
+        'Repayment_ID' => $repaymentID,
+        'Loan_ID' => $loanID,
+        'Due_Date' => $todayStr,
+        'Amount_Due' => $amountPaid,
+        'Loan_Status' => $repaymentStatus,
+    )),
 ));
