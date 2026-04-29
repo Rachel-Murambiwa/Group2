@@ -24,7 +24,7 @@ const BorrowerFeed = () => {
   useEffect(() => {
     const fetchVaults = async () => {
       try {
-        const response = await fetch('http://localhost/StudentLendingSystem/Group2/api/vaults/get_available.php');
+        const response = await fetch('http://194.147.58.241:8091/vaults/get_available.php');
         const data = await response.json();
         
         if (response.ok) {
