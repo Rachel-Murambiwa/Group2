@@ -6,10 +6,10 @@ services:
   # ----------------------------------------
   frontend:
     build:
-      context: ./src
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: src/Dockerfile
     ports:
-      - "80:80"
+      - "8090:80"
     depends_on:
       - backend
 
@@ -21,7 +21,7 @@ services:
       context: ./api
       dockerfile: Dockerfile
     ports:
-      - "8080:80"
+      - "8091:80"
     depends_on:
       - db
 
