@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  # ----------------------------------------
+  # 1. The React Frontend Service
+  # ----------------------------------------
+  frontend:
+    build:
+      context: ./Group2/src
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+  # ----------------------------------------
+  # 2. The PHP Backend API Service
+  # ----------------------------------------
+  backend:
+    build:
+      context: ./Group2/api
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+
+  # ----------------------------------------
+  # 3. The MySQL Database Service
+  # ----------------------------------------
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: Chacha@1583 # Change this to a secure password
+      MYSQL_DATABASE: charleedash_db       # Docker automatically creates this empty DB
+    ports:
+      - "3306:3306"
+    volumes:
+      # This volume persists your data so it isn't lost when containers stop
+      - db_data:/var/lib/mysql
+      # This line maps your local SQL dump to the container's initialization folder
+      - ./charleedash_dump.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  db_data:
