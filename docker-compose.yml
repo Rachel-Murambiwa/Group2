@@ -32,10 +32,8 @@ services:
     image: mysql:8.0
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: Chacha@1583 # Change this to a secure password
+      MYSQL_ROOT_PASSWORD: Chacha@1583
       MYSQL_DATABASE: charleedash_db       # Docker automatically creates this empty DB
-    ports:
-      - "3306:3306"
     volumes:
       # This volume persists your data so it isn't lost when containers stop
       - db_data:/var/lib/mysql
