@@ -39,6 +39,19 @@ services:
       - db_data:/var/lib/mysql
       # This line maps your local SQL dump to the container's initialization folder
       - ./charleedash_dump.sql:/docker-entrypoint-initdb.d/init.sql
+      
+  # ----------------------------------------
+  # 4. Database Management Dashboard
+  # ----------------------------------------
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    restart: always
+    ports:
+      - "8092:80" # Opens the dashboard on port 8092
+    environment:
+      PMA_HOST: db # Tells phpMyAdmin to connect to your MySQL container
+    depends_on:
+      - db
 
 volumes:
   db_data:
