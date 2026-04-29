@@ -41,7 +41,7 @@ export default function Login() {
 
     try {
       // Connect to the upcoming PHP backend
-      const response = await fetch('http://localhost/software/backend/api/auth/login.php', {
+      const response = await fetch('http://194.147.58.241:8091/auth/login.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)

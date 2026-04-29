@@ -78,7 +78,7 @@ export default function Register() {
     }
 
     try {
-      const response = await fetch('http://localhost/software/backend/api/auth/register_send_otp.php', {
+      const response = await fetch('http://194.147.58.241:8091/auth/register_send_otp.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -105,7 +105,7 @@ export default function Register() {
     }
 
     try {
-      const response = await fetch('http://localhost/software/backend/api/auth/verify_otp.php', {
+      const response = await fetch('http://194.147.58.241:8091/auth/verify_otp.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: formData.phone, otp: otpString })
