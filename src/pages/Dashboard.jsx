@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import LoanRequestModal from './LoanRequestModal';
 
 // -------------------------------------------------------------------------
-// 1. COMPONENT: Borrower Feed UI (Responsive)
+// 1. COMPONENT: Borrower Feed UI (Responsive & Live)
 // -------------------------------------------------------------------------
 const BorrowerFeed = () => {
   const [selectedVault, setSelectedVault] = useState(null);
@@ -15,6 +15,7 @@ const BorrowerFeed = () => {
       try {
         const response = await fetch('http://194.147.58.241:8091/vaults/get_available.php');
         const data = await response.json();
+        
         if (response.ok) {
           setVaults(data.vaults);
         } else {
@@ -105,13 +106,92 @@ const BorrowerFeed = () => {
 };
 
 // -------------------------------------------------------------------------
-// 2. COMPONENT: Lender Portfolio UI (Responsive)
+// 2. COMPONENT: Lender Portfolio UI (Responsive & Live)
 // -------------------------------------------------------------------------
 const LenderPortfolio = () => {
+  const [formData, setFormData] = useState({
+    amount: '',
+    interest: '',
+    duration: '',
+  });
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Temporary Dummy Data for display until we fetch live investments
   const ACTIVE_INVESTMENTS = [
     { id: 101, alias: "Vault #804", amount: 500, return: "+GHS 25", status: "Active", due: "In 12 Days" },
     { id: 102, alias: "Vault #211", amount: 200, return: "+GHS 0", status: "Paid", due: "Completed" },
   ];
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setMessage('');
+    setError('');
+  };
+
+  const handleDeployCapital = async (e) => {
+    e.preventDefault();
+    setMessage('');
+    setError('');
+
+    const amount = Number(formData.amount);
+    const interest = Number(formData.interest);
+    const duration = Number(formData.duration);
+
+    if (!amount || amount <= 0) {
+      setError('Enter an amount greater than zero.');
+      return;
+    }
+
+    if (Number.isNaN(interest) || interest < 0 || interest > 15) {
+      setError('Interest must be between 0 and 15%.');
+      return;
+    }
+
+    if (!duration || duration <= 0) {
+      setError('Enter a duration of at least 1 day.');
+      return;
+    }
+
+    const savedUser = localStorage.getItem('user');
+    const user = savedUser ? JSON.parse(savedUser) : null;
+
+    if (!user?.id && !user?.userID) {
+      setError('Please log in again before deploying capital.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // UPDATED TO LIVE IP
+      const response = await fetch('http://194.147.58.241:8091/vaults/create.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userID: user.userID || user.id,
+          amount,
+          interest,
+          duration,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'Could not deploy capital.');
+        return;
+      }
+
+      setFormData({ amount: '', interest: '', duration: '' });
+      setMessage(data.message || 'Capital deployed successfully.');
+    } catch (err) {
+      setError('Cannot connect to server. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -143,23 +223,28 @@ const LenderPortfolio = () => {
         <div className="lg:col-span-1 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-1 bg-rich-gold"></div>
           <h4 className="text-lg font-bold text-slate-800 mb-5">Create New Vault</h4>
-          <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+          
+          <form className="space-y-4" onSubmit={handleDeployCapital}>
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Amount (GHS)</label>
-              <input type="number" className="w-full p-3 border-2 border-slate-100 rounded-lg bg-slate-50 focus:bg-white focus:border-rich-gold outline-none transition-all font-bold text-slate-700 text-sm" placeholder="e.g. 200" />
+              <input name="amount" value={formData.amount} onChange={handleChange} type="number" min="1" step="0.01" className="w-full p-3 border-2 border-slate-100 rounded-lg bg-slate-50 focus:bg-white focus:border-rich-gold outline-none transition-all font-bold text-slate-700 text-sm" placeholder="e.g. 200" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Interest (%)</label>
-                <input type="number" className="w-full p-3 border-2 border-slate-100 rounded-lg bg-slate-50 focus:bg-white focus:border-rich-gold outline-none transition-all font-bold text-slate-700 text-sm" placeholder="0-15" />
+                <input name="interest" value={formData.interest} onChange={handleChange} type="number" min="0" max="15" step="0.01" className="w-full p-3 border-2 border-slate-100 rounded-lg bg-slate-50 focus:bg-white focus:border-rich-gold outline-none transition-all font-bold text-slate-700 text-sm" placeholder="0 - 15" />
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Days</label>
-                <input type="number" className="w-full p-3 border-2 border-slate-100 rounded-lg bg-slate-50 focus:bg-white focus:border-rich-gold outline-none transition-all font-bold text-slate-700 text-sm" placeholder="7" />
+                <input name="duration" value={formData.duration} onChange={handleChange} type="number" min="1" step="1" className="w-full p-3 border-2 border-slate-100 rounded-lg bg-slate-50 focus:bg-white focus:border-rich-gold outline-none transition-all font-bold text-slate-700 text-sm" placeholder="7" />
               </div>
             </div>
-            <button className="w-full py-3 mt-2 bg-slate-800 text-white font-bold rounded-lg uppercase tracking-wider text-xs hover:bg-rich-gold hover:shadow-lg transition-all">
-              Deploy Capital
+            
+            {error && <p className="text-xs font-bold text-red-600">{error}</p>}
+            {message && <p className="text-xs font-bold text-green-600">{message}</p>}
+            
+            <button disabled={isSubmitting} className="w-full py-3 mt-2 bg-slate-800 text-white font-bold rounded-lg uppercase tracking-wider text-xs hover:bg-rich-gold hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+              {isSubmitting ? 'Deploying...' : 'Deploy Capital'}
             </button>
           </form>
         </div>
