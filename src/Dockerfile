@@ -6,10 +6,11 @@ RUN npm install --legacy-peer-deps
 COPY . .
 RUN npm run build
 
-# Stage 2: Serve the application using Nginx
+# Stage 2: Serve with Nginx
 FROM nginx:alpine
-# Copy the built assets from Stage 1 to the Nginx web directory.
-# Note: If you are using Vite, use /app/dist. If Create React App, use /app/build.
+# Copy your custom config to the Nginx configuration directory
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy the built React files
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
