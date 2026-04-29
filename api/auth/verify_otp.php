@@ -1,7 +1,7 @@
 <?php
 date_default_timezone_set('Africa/Accra');
 // 1. HEADERS (Must be at the very top)
-header("Access-Control-Allow-Origin: http://localhost:5173");
+header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
@@ -12,10 +12,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // 2. DB CONNECTION
-$host = "localhost";
+$host = "db"; 
 $db_name = "charleedash_db";
 $username = "root";
-$password = "";
+$password = "Chacha@1583";
 
 try {
     $conn = new PDO("mysql:host=$host;dbname=$db_name", $username, $password);
