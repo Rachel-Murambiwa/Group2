@@ -21,7 +21,7 @@ jobs:
           # These are the commands that will run directly inside your live server
           script: |
             # 1. Navigate to where your project lives on the server
-            cd /var/www/charleedash # UPDATE THIS to your actual server folder path
+            cd /Group2
             
             # 2. Pull the latest code securely from GitHub
             git pull origin main
