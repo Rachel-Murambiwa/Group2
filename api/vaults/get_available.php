@@ -1,37 +1,41 @@
 <?php
+date_default_timezone_set('Africa/Accra');
 
-require_once __DIR__ . '/../../frontend_api.php';
+header("Access-Control-Allow-Origin: *");
+header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Methods: GET, OPTIONS");
 
-api_cors('GET');
-api_require_method('GET');
-
-try {
-    $stmt = $pdo->prepare('
-        SELECT
-            l.Loan_ID AS id,
-            l.Amount AS amount,
-            l.Interest_Rate AS interest,
-            l.Duration_Months AS duration,
-            COALESCE(u.Code_Name, "Vault") AS alias
-        FROM Loan l
-        LEFT JOIN Users u ON u.User_ID = l.Lender_ID
-        WHERE l.Loan_Status = "approved"
-        ORDER BY l.Date_Requested DESC, l.Loan_ID DESC
-    ');
-    $stmt->execute();
-    $vaults = $stmt->fetchAll();
-} catch (PDOException $e) {
-    frontend_format_error('Database error while fetching vaults.', 500);
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
 }
 
-$vaults = array_map(function ($vault) {
-    return array(
-        'id' => (int) $vault['id'],
-        'amount' => (float) $vault['amount'],
-        'interest' => (float) $vault['interest'],
-        'duration' => (int) $vault['duration'],
-        'alias' => $vault['alias'],
-    );
-}, $vaults);
+$host = "db"; 
+$db_name = "charleedash_db";
+$username = "root";
+$password = "Chacha@1583";
 
-api_json(array('vaults' => $vaults));
+try {
+    $conn = new PDO("mysql:host=$host;dbname=$db_name", $username, $password);
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    // We use a JOIN here to get the Alias of the person who created the vault!
+    $query = "SELECT v.id, v.amount, v.interest_rate as interest, v.duration_days as duration, u.alias 
+              FROM vaults v 
+              JOIN users u ON v.lender_id = u.id 
+              WHERE v.status = 'available' 
+              ORDER BY v.created_at DESC";
+              
+    $stmt = $conn->prepare($query);
+    $stmt->execute();
+    
+    $vaults = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    http_response_code(200);
+    echo json_encode(["vaults" => $vaults]);
+
+} catch(PDOException $e) {
+    http_response_code(500);
+    echo json_encode(["error" => "Database error: " . $e->getMessage()]);
+}
+?>

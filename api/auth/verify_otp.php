@@ -1,50 +1,69 @@
 <?php
+date_default_timezone_set('Africa/Accra');
+// 1. HEADERS (Must be at the very top)
+header("Access-Control-Allow-Origin: *");
+header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
-require_once __DIR__ . '/../../frontend_api.php';
-
-api_cors('POST');
-api_require_method('POST');
-
-$body = api_input();
-$phone = trim(api_value($body, array('phone'), ''));
-$otp = trim(api_value($body, array('otp'), ''));
-
-if ($phone === '' || $otp === '') {
-    frontend_format_error('Incomplete data.', 400);
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
 }
+
+// 2. DB CONNECTION
+$host = "db"; 
+$db_name = "charleedash_db";
+$username = "root";
+$password = "Chacha@1583";
 
 try {
-    $stmt = $pdo->prepare('
-        SELECT u.User_ID, v.Verification_Code, v.Expiry_Date
-        FROM Users u
-        JOIN Verification v ON v.User_ID = u.User_ID
-        WHERE u.Phone_Number = ?
-        ORDER BY v.Expiry_Date DESC
-        LIMIT 1
-    ');
-    $stmt->execute(array($phone));
-    $record = $stmt->fetch();
-} catch (PDOException $e) {
-    frontend_format_error('DB Connection Failed', 500);
+    $conn = new PDO("mysql:host=$host;dbname=$db_name", $username, $password);
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch(PDOException $e) {
+    http_response_code(500);
+    echo json_encode(["error" => "DB Connection Failed"]);
+    exit();
 }
 
-if (!$record) {
-    frontend_format_error('User not found.', 404);
-}
+$data = json_decode(file_get_contents("php://input"));
 
-if (new DateTime() > new DateTime($record['Expiry_Date'])) {
-    frontend_format_error('OTP has expired. Please request a new one.', 401);
-}
+if(!empty($data->phone) && !empty($data->otp)) {
+    
+    // 3. FETCH USER AND OTP TIMESTAMP
+    $query = "SELECT otp_code, otp_created_at FROM users WHERE phone = :phone LIMIT 1";
+    $stmt = $conn->prepare($query);
+    $stmt->bindParam(":phone", $data->phone);
+    $stmt->execute();
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if ($record['Verification_Code'] !== $otp) {
-    frontend_format_error('Invalid OTP code.', 401);
-}
+    if($user) {
+        // CHECK EXPIRATION (5 Minutes)
+        $createdAt = strtotime($user['otp_created_at']);
+        $now = time();
+        $minutesPassed = ($now - $createdAt) / 60;
 
-try {
-    $stmt = $pdo->prepare('UPDATE Users SET Is_Verified = TRUE WHERE User_ID = ?');
-    $stmt->execute(array($record['User_ID']));
-} catch (PDOException $e) {
-    frontend_format_error('Error verifying account.', 500);
-}
+        if ($minutesPassed > 5) {
+            http_response_code(401);
+            echo json_encode(["error" => "OTP has expired. Please request a new one."]);
+            exit();
+        }
 
-api_json(array('message' => 'Account verified!'));
+        if ($user['otp_code'] === $data->otp) {
+            // SUCCESS - Verify the user
+            $update = "UPDATE users SET is_verified = 1, otp_code = NULL WHERE phone = :phone";
+            $updateStmt = $conn->prepare($update);
+            $updateStmt->bindParam(":phone", $data->phone);
+            $updateStmt->execute();
+
+            echo json_encode(["message" => "Account verified!"]);
+        } else {
+            http_response_code(401);
+            echo json_encode(["error" => "Invalid OTP code."]);
+        }
+    } else {
+        http_response_code(404);
+        echo json_encode(["error" => "User not found."]);
+    }
+}
+?>
