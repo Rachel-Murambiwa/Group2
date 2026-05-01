@@ -23,10 +23,10 @@ export default function Login() {
     e.preventDefault();
     const newErrors = {};
 
-    // Domain validation check for Ghanaian numbers
-    const phoneRegex = /^0\d{9}$/;
+    // UPDATED: Flexible regex to allow international numbers
+    const phoneRegex = /^\+?\d{7,15}$/;
     if (!phoneRegex.test(formData.phone)) {
-      newErrors.phone = 'Please enter a valid 10-digit Ghanaian number.';
+      newErrors.phone = 'Please enter a valid phone number with country code.';
     }
     
     if (!formData.password) {
@@ -38,26 +38,28 @@ export default function Login() {
       return;
     }
 
+    // NORMALIZATION: Strip '+' for database consistency
+    const normalizedData = {
+      ...formData,
+      phone: formData.phone.replace('+', '')
+    };
+
     try {
       const response = await fetch('http://194.147.58.241:8091/auth/login.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(normalizedData)
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // 1. Save user session data (now including is_admin) and token
         localStorage.setItem('user', JSON.stringify(data.user));
         localStorage.setItem('token', data.token);
 
-        // 2. SMART REDIRECT: Check the is_admin flag from the backend
         if (data.user && data.user.is_admin === 1) {
-          // Send Admins directly to the management panel
           navigate('/admin');
         } else {
-          // Send standard Students to the borrower/lender dashboard
           navigate('/dashboard');
         }
       } else {

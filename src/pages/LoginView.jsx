@@ -12,7 +12,7 @@ export default function LoginView({ formData, errors, onChange, onSubmit }) {
       <div className="w-full max-w-md bg-white p-8 sm:p-10 rounded-2xl shadow-2xl border-t-4 border-ashesi-red relative z-10">
         
         <div className="mb-6">
-          <Link to="/" className="text-sm font-bold text-slate-500 hover:text-ashesi-red transition-colors flex items-center gap-2 uppercase tracking-wider">
+          <Link to="/" className="text-sm font-bold text-slate-500 hover:text-ashesi-red transition-colors flex items-center gap-2 uppercase tracking-wider no-underline">
             &larr; Back to Home
           </Link>
         </div>
@@ -22,7 +22,6 @@ export default function LoginView({ formData, errors, onChange, onSubmit }) {
           <p className="text-slate-500 font-medium">Access your Student Capital vault.</p>
         </div>
 
-        {/* Global Error Message (e.g., Wrong Password, Not Verified) */}
         {errors.auth && (
           <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm font-bold rounded">
             {errors.auth}
@@ -38,9 +37,11 @@ export default function LoginView({ formData, errors, onChange, onSubmit }) {
               className={`w-full p-4 border-2 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:border-rich-gold focus:ring-4 focus:ring-rich-gold/20 transition-all text-slate-800 font-bold ${errors.phone ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
               value={formData.phone}
               onChange={onChange}
-              placeholder="024XXXXXXX"
+              placeholder="e.g. 23324XXXXXXX" // UPDATED for global support
               required
             />
+            {/* Added a small helper hint for students */}
+            <p className="mt-1 text-[10px] text-slate-400 italic font-medium">Include country code for international support.</p>
             {errors.phone && <p className="text-red-500 text-xs font-bold mt-2">{errors.phone}</p>}
           </div>
 
@@ -65,7 +66,7 @@ export default function LoginView({ formData, errors, onChange, onSubmit }) {
 
         <p className="text-center mt-8 text-sm font-medium text-slate-500">
           Don't have an account?{' '}
-          <Link to="/register" className="text-ashesi-red font-bold hover:text-rich-gold transition-colors uppercase tracking-wider">
+          <Link to="/register" className="text-ashesi-red font-bold hover:text-rich-gold transition-colors uppercase tracking-wider no-underline">
             Create one here
           </Link>
         </p>
