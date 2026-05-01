@@ -14,6 +14,7 @@ export default function Register() {
   });
   
   const [otp, setOtp] = useState(['', '', '', '', '', '']); 
+  const [serverOtp, setServerOtp] = useState(''); // NEW: Added to store the OTP for the WhatsApp Link[cite: 5]
   const [step, setStep] = useState(1); 
   const [errors, setErrors] = useState({});
 
@@ -50,9 +51,10 @@ export default function Register() {
     e.preventDefault();
     const newErrors = {};
 
-    const phoneRegex = /^0\d{9}$/;
+    // UPDATED: Flexible regex to allow international country codes (7-15 digits)[cite: 5]
+    const phoneRegex = /^\+?\d{7,15}$/; 
     if (!phoneRegex.test(formData.phone)) {
-      newErrors.phone = 'Please enter a valid 10-digit Ghanaian number.';
+      newErrors.phone = 'Enter a valid number with country code (e.g., 23324XXXXXXX).';
     }
 
     if (!formData.alias || formData.alias.length < 3) {
@@ -67,7 +69,6 @@ export default function Register() {
       newErrors.password = 'Password must be 8+ characters with uppercase, number, and symbol.';
     }
 
-    // Passwords Match Check
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match.';
     }
@@ -77,21 +78,29 @@ export default function Register() {
       return;
     }
 
+    // NORMALIZATION: Clean the phone number of "+" for database storage
+    const normalizedData = {
+      ...formData,
+      phone: formData.phone.replace('+', '')
+    };
+
     try {
       const response = await fetch('http://194.147.58.241:8091/auth/register_send_otp.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(normalizedData)
       });
 
       const data = await response.json();
       if (response.ok) {
+        // NEW: Store the OTP returned from the server to build the WhatsApp link[cite: 5]
+        setServerOtp(data.otp); 
         setStep(2); 
       } else {
         setErrors({ phone: data.error || "Registration failed." });
       }
     } catch (err) {
-      setErrors({ phone: "Cannot connect to server. Is XAMPP running?" });
+      setErrors({ phone: "Cannot connect to server. Check your connection." });
     }
   };
 
@@ -108,7 +117,10 @@ export default function Register() {
       const response = await fetch('http://194.147.58.241:8091/auth/verify_otp.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: formData.phone, otp: otpString })
+        body: JSON.stringify({ 
+          phone: formData.phone.replace('+', ''), // Ensure clean comparison
+          otp: otpString 
+        })
       });
 
       if (response.ok) {
@@ -127,6 +139,7 @@ export default function Register() {
       step={step}
       formData={formData}
       otp={otp}
+      serverOtp={serverOtp} // NEW: Pass the OTP to RegisterView[cite: 5]
       errors={errors}
       onChange={handleChange}
       onOtpChange={handleOtpChange}
