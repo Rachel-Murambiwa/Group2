@@ -1,12 +1,9 @@
 <?php
 
-$headers = getallheaders();
-$token   = $headers['Authorization'] ?? '';
+$token = api_token();
 
 if (empty($token)) {
-    http_response_code(401);
-    echo json_encode(array('success' => false, 'message' => 'No token provided. Please log in.'));
-    exit;
+    api_json(array('success' => false, 'message' => 'No token provided. Please log in.'), 401);
 }
 
 try {
@@ -14,21 +11,15 @@ try {
     $stmt->execute(array($token));
     $session = $stmt->fetch();
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(array('success' => false, 'message' => 'Error checking session: ' . $e->getMessage()));
-    exit;
+    api_json(array('success' => false, 'message' => 'Error checking session: ' . $e->getMessage()), 500);
 }
 
 if (!$session) {
-    http_response_code(401);
-    echo json_encode(array('success' => false, 'message' => 'Invalid token. Please log in again.'));
-    exit;
+    api_json(array('success' => false, 'message' => 'Invalid token. Please log in again.'), 401);
 }
 
 if (new DateTime() > new DateTime($session['expires_at'])) {
-    http_response_code(401);
-    echo json_encode(array('success' => false, 'message' => 'Token expired. Please log in again.'));
-    exit;
+    api_json(array('success' => false, 'message' => 'Token expired. Please log in again.'), 401);
 }
 
 try {
@@ -36,7 +27,5 @@ try {
     $stmt->execute(array($session['User_ID']));
     $loggedInUser = $stmt->fetch();
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(array('success' => false, 'message' => 'Error fetching user: ' . $e->getMessage()));
-    exit;
+    api_json(array('success' => false, 'message' => 'Error fetching user: ' . $e->getMessage()), 500);
 }

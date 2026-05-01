@@ -1,28 +1,18 @@
 <?php
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(array('success' => false, 'message' => 'Method not allowed.'));
-    exit;
-}
-
 require_once 'db.php';
+api_cors('POST');
+api_require_method('POST');
 
 //Read input
-$body        = json_decode(file_get_contents('php://input'), true);
-$firstName   = trim($body['firstName']   ?? '');
-$lastName    = trim($body['lastName']    ?? '');
-$email       = trim($body['email']       ?? '');
-$phoneNumber = trim($body['phoneNumber'] ?? '');
-$bankName    = trim($body['bankName']    ?? '');
-$bankAccount = trim($body['bankAccount'] ?? '');
-$password    = $body['password']         ?? '';
+$body        = api_input();
+$firstName   = trim(api_value($body, array('firstName', 'first_name', 'firstname'), ''));
+$lastName    = trim(api_value($body, array('lastName', 'last_name', 'lastname'), ''));
+$email       = trim(api_value($body, array('email', 'Email'), ''));
+$phoneNumber = trim(api_value($body, array('phoneNumber', 'phone_number', 'phone'), ''));
+$bankName    = trim(api_value($body, array('bankName', 'bank_name', 'bank'), ''));
+$bankAccount = trim(api_value($body, array('bankAccount', 'bank_account', 'accountNumber', 'account_number'), ''));
+$password    = api_value($body, array('password', 'userPassword', 'user_password'), '');
 
 //Validate
 $errors = array();
@@ -38,9 +28,7 @@ if (!str_ends_with(strtolower($email), '@ashesi.edu.gh')) $errors[] = 'Email mus
 if (strlen($password) < 8) $errors[] = 'Password must be at least 8 characters.';
 
 if (!empty($errors)) {
-    http_response_code(422);
-    echo json_encode(array('success' => false, 'errors' => $errors));
-    exit;
+    api_json(array('success' => false, 'message' => implode(' ', $errors), 'errors' => $errors), 422);
 }
 
 //Check email not already taken
@@ -48,14 +36,10 @@ try {
     $stmt = $pdo->prepare('SELECT User_ID FROM Users WHERE Email = ?');
     $stmt->execute(array($email));
     if ($stmt->fetch()) {
-        http_response_code(409);
-        echo json_encode(array('success' => false, 'message' => 'Email already registered.'));
-        exit;
+        api_json(array('success' => false, 'message' => 'Email already registered.'), 409);
     }
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(array('success' => false, 'message' => 'Error checking email: ' . $e->getMessage()));
-    exit;
+    api_json(array('success' => false, 'message' => 'Error checking email: ' . $e->getMessage()), 500);
 }
 
 //Generate unique User_ID
@@ -86,14 +70,12 @@ $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 //Save user
 try {
     $stmt = $pdo->prepare('
-        INSERT INTO Users (User_ID, First_Name, Last_Name, Email, Phone_Number, User_Password, BankName, BankAccount, Code_Name, Is_Verified)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, FALSE)
+        INSERT INTO Users (User_ID, First_Name, Last_Name, Email, Phone_Number, User_Password, BankName, BankAccount, Code_Name, Credit_Score, Is_Verified)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 5.0, FALSE)
     ');
     $stmt->execute(array($userID, $firstName, $lastName, $email, $phoneNumber, $hashedPassword, $bankName, $bankAccount, $codeName));
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(array('success' => false, 'message' => 'Error saving user: ' . $e->getMessage()));
-    exit;
+    api_json(array('success' => false, 'message' => 'Error saving user: ' . $e->getMessage()), 500);
 }
 
 //Save verification code
@@ -108,15 +90,14 @@ try {
     ');
     $stmt->execute(array($verificationID, $userID, $email, $verificationCode, $expiryDate));
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(array('success' => false, 'message' => 'Error saving verification: ' . $e->getMessage()));
-    exit;
+    api_json(array('success' => false, 'message' => 'Error saving verification: ' . $e->getMessage()), 500);
 }
 
 //Respond
-http_response_code(201);
-echo json_encode(array(
+api_json(array(
     'success' => true,
     'message' => 'Registration successful! Check your email for the verification code.',
     'userID'  => $userID,
-));
+    'codeName' => $codeName,
+    'verificationCode' => $verificationCode,
+), 201);

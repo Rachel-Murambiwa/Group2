@@ -12,7 +12,7 @@ CREATE TABLE Users (
     BankName      VARCHAR(50),
     BankAccount   VARCHAR(12)  UNIQUE,
     Code_Name     VARCHAR(20)  UNIQUE,
-    Credit_Score  FLOAT        CHECK (Credit_Score BETWEEN 0 AND 10),
+    Credit_Score  FLOAT        DEFAULT 5.0 CHECK (Credit_Score BETWEEN 0 AND 10),
     Is_Verified   BOOLEAN      NOT NULL DEFAULT FALSE
 );
 
@@ -22,7 +22,7 @@ CREATE TABLE Loan (
     Lender_ID       VARCHAR(8),
     Amount          DECIMAL(10,2) NOT NULL,
     Duration_Months INT           NOT NULL,
-    Interest_Rate   DECIMAL(5,2)  NOT NULL,
+    Interest_Rate   DECIMAL(5,2)  NOT NULL DEFAULT 0,
     Loan_Status     ENUM('pending','approved','rejected','disbursed','settled'),
     Date_Requested  DATE,
     Date_Disbursed  DATE,
@@ -55,4 +55,11 @@ CREATE TABLE Verification (
     Verification_Code VARCHAR(100),
     Expiry_Date       DATETIME,
     FOREIGN KEY (User_ID) REFERENCES Users(User_ID)
+);
+
+CREATE TABLE Sessions (
+    session_token VARCHAR(70) PRIMARY KEY,
+    User_ID       VARCHAR(8)  NOT NULL,
+    created_at    DATETIME    NOT NULL,
+    expires_at    DATETIME    NOT NULL
 );

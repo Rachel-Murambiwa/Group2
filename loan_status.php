@@ -1,27 +1,15 @@
 <?php
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
-if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-    http_response_code(405);
-    echo json_encode(array('success' => false, 'message' => 'Method not allowed.'));
-    exit;
-}
-
 require_once 'db.php';
+api_cors('GET');
+api_require_method('GET');
 require_once 'auth.php';
 
 //Get loanID
-$loanID = $_GET['loanID'] ?? '';
+$loanID = api_value($_GET, array('loanID', 'loanId', 'loan_id', 'id'), '');
 
 if (empty($loanID)) {
-    http_response_code(422);
-    echo json_encode(array('success' => false, 'message' => 'Loan ID is required.'));
-    exit;
+    api_json(array('success' => false, 'message' => 'Loan ID is required.'), 422);
 }
 
 //Find the loan
@@ -30,15 +18,11 @@ try {
     $stmt->execute(array($loanID));
     $loan = $stmt->fetch();
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(array('success' => false, 'message' => 'Error finding loan: ' . $e->getMessage()));
-    exit;
+    api_json(array('success' => false, 'message' => 'Error finding loan: ' . $e->getMessage()), 500);
 }
 
 if (!$loan) {
-    http_response_code(404);
-    echo json_encode(array('success' => false, 'message' => 'Loan not found.'));
-    exit;
+    api_json(array('success' => false, 'message' => 'Loan not found.'), 404);
 }
 
 //Make sure the loan belongs to this user (borrower or lender)
@@ -47,9 +31,7 @@ $isBorrower      = $loan['Borrower_ID'] === $userID;
 $isLender        = $loan['Lender_ID']   === $userID;
 
 if (!$isBorrower && !$isLender) {
-    http_response_code(403);
-    echo json_encode(array('success' => false, 'message' => 'You do not have access to this loan.'));
-    exit;
+    api_json(array('success' => false, 'message' => 'You do not have access to this loan.'), 403);
 }
 
 //Get repayment schedule for this loan
@@ -58,9 +40,7 @@ try {
     $stmt->execute(array($loanID));
     $repayments = $stmt->fetchAll();
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(array('success' => false, 'message' => 'Error fetching repayments: ' . $e->getMessage()));
-    exit;
+    api_json(array('success' => false, 'message' => 'Error fetching repayments: ' . $e->getMessage()), 500);
 }
 
 //Get transactions for this loan
@@ -69,9 +49,7 @@ try {
     $stmt->execute(array($loanID));
     $transactions = $stmt->fetchAll();
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(array('success' => false, 'message' => 'Error fetching transactions: ' . $e->getMessage()));
-    exit;
+    api_json(array('success' => false, 'message' => 'Error fetching transactions: ' . $e->getMessage()), 500);
 }
 
 // Calculate total paid so far
@@ -79,22 +57,13 @@ $totalPaid     = array_sum(array_column($repayments, 'Amount_Due'));
 $amountLeft    = $loan['Amount'] - $totalPaid;
 
 //Respond
-http_response_code(200);
-echo json_encode(array(
+api_json(array(
     'success'      => true,
-    'loan'         => array(
-        'loanID'          => $loan['Loan_ID'],
-        'amount'          => $loan['Amount'],
-        'purpose'         => $loan['Purpose'],
-        'status'          => $loan['Loan_Status'],
-        'interestRate'    => $loan['Interest_Rate'],
-        'durationMonths'  => $loan['Duration_Months'],
-        'dateRequested'   => $loan['Date_Requested'],
-        'dateDisbursed'   => $loan['Date_Disbursed'],
+    'loan'         => array_merge(api_loan($loan), array(
         'totalPaid'       => $totalPaid,
         'amountLeft'      => max(0, $amountLeft), // Never show negative
         'role'            => $isBorrower ? 'borrower' : 'lender',
-    ),
-    'repayments'   => $repayments,
-    'transactions' => $transactions,
+    )),
+    'repayments'   => api_repayments($repayments),
+    'transactions' => api_transactions($transactions),
 ));

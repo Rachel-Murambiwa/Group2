@@ -1,28 +1,21 @@
 <?php
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(array('success' => false, 'message' => 'Method not allowed.'));
-    exit;
-}
-
 require_once 'db.php';
+api_cors('POST');
+api_require_method('POST');
 require_once 'auth.php';
 
 //Read input
-$body   = json_decode(file_get_contents('php://input'), true);
-$loanID = $body['loanID'] ?? '';
+$body   = api_input();
+$loanID = api_value($body, array('loanID', 'loanId', 'loan_id', 'id'), '');
+$interestRate = api_value($body, array('interestRate', 'interest_rate', 'rate'), '');
 
 if (empty($loanID)) {
-    http_response_code(422);
-    echo json_encode(array('success' => false, 'message' => 'Loan ID is required.'));
-    exit;
+    api_json(array('success' => false, 'message' => 'Loan ID is required.'), 422);
+}
+
+if (empty($interestRate) || $interestRate <= 0) {
+    api_json(array('success' => false, 'message' => 'Interest rate is required and must be greater than zero.'), 422);
 }
 
 //Find the loan
@@ -31,29 +24,21 @@ try {
     $stmt->execute(array($loanID));
     $loan = $stmt->fetch();
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(array('success' => false, 'message' => 'Error finding loan: ' . $e->getMessage()));
-    exit;
+    api_json(array('success' => false, 'message' => 'Error finding loan: ' . $e->getMessage()), 500);
 }
 
 if (!$loan) {
-    http_response_code(404);
-    echo json_encode(array('success' => false, 'message' => 'Loan not found.'));
-    exit;
+    api_json(array('success' => false, 'message' => 'Loan not found.'), 404);
 }
 
-//Check loan is still pending
-if ($loan['Loan_Status'] !== 'pending') {
-    http_response_code(400);
-    echo json_encode(array('success' => false, 'message' => 'This loan is no longer available for funding.'));
-    exit;
+//Only admin-approved loans can be funded by lenders.
+if ($loan['Loan_Status'] !== 'approved') {
+    api_json(array('success' => false, 'message' => 'This loan must be approved by admin before it can be funded.'), 400);
 }
 
 //Lender cannot fund their own loan
 if ($loan['Borrower_ID'] === $loggedInUser['User_ID']) {
-    http_response_code(400);
-    echo json_encode(array('success' => false, 'message' => 'You cannot fund your own loan request.'));
-    exit;
+    api_json(array('success' => false, 'message' => 'You cannot fund your own loan request.'), 400);
 }
 
 //Update loan and record transaction
@@ -61,25 +46,29 @@ try {
     $dateDisbursed = date('Y-m-d');
 
     $stmt = $pdo->prepare('
-        UPDATE Loan SET Lender_ID = ?, Loan_Status = "disbursed", Date_Disbursed = ?
+        UPDATE Loan SET Lender_ID = ?, Interest_Rate = ?, Loan_Status = "disbursed", Date_Disbursed = ?
         WHERE Loan_ID = ?
     ');
-    $stmt->execute(array($loggedInUser['User_ID'], $dateDisbursed, $loanID));
+    $stmt->execute(array($loggedInUser['User_ID'], $interestRate, $dateDisbursed, $loanID));
 
     $stmt = $pdo->prepare('INSERT INTO Transactions (Transaction_Type, Loan_ID, Transaction_Date) VALUES ("loan release", ?, ?)');
     $stmt->execute(array($loanID, $dateDisbursed));
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(array('success' => false, 'message' => 'Error funding loan: ' . $e->getMessage()));
-    exit;
+    api_json(array('success' => false, 'message' => 'Error funding loan: ' . $e->getMessage()), 500);
 }
 
 //Respond
-http_response_code(200);
-echo json_encode(array(
+api_json(array(
     'success'       => true,
     'message'       => 'Loan funded successfully!',
     'loanID'        => $loanID,
     'amount'        => $loan['Amount'],
+    'interestRate'  => $interestRate,
     'dateDisbursed' => $dateDisbursed,
+    'loan'          => api_loan(array_merge($loan, array(
+        'Lender_ID' => $loggedInUser['User_ID'],
+        'Interest_Rate' => $interestRate,
+        'Loan_Status' => 'disbursed',
+        'Date_Disbursed' => $dateDisbursed,
+    ))),
 ));

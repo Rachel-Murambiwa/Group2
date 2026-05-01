@@ -1,26 +1,12 @@
 <?php
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
-
 require_once 'db.php';
+api_cors('GET');
+api_require_method('GET');
 require_once 'auth.php';
 
 //Get user details
-$userInfo = array(
-    'userID'      => $loggedInUser['User_ID'],
-    'firstName'   => $loggedInUser['First_Name'],
-    'lastName'    => $loggedInUser['Last_Name'],
-    'email'       => $loggedInUser['Email'],
-    'phoneNumber' => $loggedInUser['Phone_Number'],
-    'bankName'    => $loggedInUser['BankName'],
-    'codeName'    => $loggedInUser['Code_Name'],
-    'creditScore' => $loggedInUser['Credit_Score'],
-);
+$userInfo = api_user($loggedInUser);
 
 //Get user's loans
 try {
@@ -28,9 +14,29 @@ try {
     $stmt->execute(array($loggedInUser['User_ID']));
     $loans = $stmt->fetchAll();
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(array('success' => false, 'message' => 'Error fetching loans: ' . $e->getMessage()));
-    exit;
+    api_json(array('success' => false, 'message' => 'Error fetching loans: ' . $e->getMessage()), 500);
+}
+
+//Get loans funded by this user
+try {
+    $stmt = $pdo->prepare('SELECT * FROM Loan WHERE Lender_ID = ? ORDER BY Date_Disbursed DESC');
+    $stmt->execute(array($loggedInUser['User_ID']));
+    $lentLoans = $stmt->fetchAll();
+} catch (PDOException $e) {
+    api_json(array('success' => false, 'message' => 'Error fetching funded loans: ' . $e->getMessage()), 500);
+}
+
+//Get open loans this user can fund
+try {
+    $stmt = $pdo->prepare('
+        SELECT * FROM Loan
+        WHERE Loan_Status = "approved" AND Borrower_ID <> ?
+        ORDER BY Date_Requested DESC
+    ');
+    $stmt->execute(array($loggedInUser['User_ID']));
+    $availableLoans = $stmt->fetchAll();
+} catch (PDOException $e) {
+    api_json(array('success' => false, 'message' => 'Error fetching available loans: ' . $e->getMessage()), 500);
 }
 
 //Get user's transactions
@@ -44,9 +50,7 @@ try {
     $stmt->execute(array($loggedInUser['User_ID'], $loggedInUser['User_ID']));
     $transactions = $stmt->fetchAll();
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(array('success' => false, 'message' => 'Error fetching transactions: ' . $e->getMessage()));
-    exit;
+    api_json(array('success' => false, 'message' => 'Error fetching transactions: ' . $e->getMessage()), 500);
 }
 
 //Get repayment schedules
@@ -60,17 +64,17 @@ try {
     $stmt->execute(array($loggedInUser['User_ID']));
     $repayments = $stmt->fetchAll();
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(array('success' => false, 'message' => 'Error fetching repayments: ' . $e->getMessage()));
-    exit;
+    api_json(array('success' => false, 'message' => 'Error fetching repayments: ' . $e->getMessage()), 500);
 }
 
 //Respond
-http_response_code(200);
-echo json_encode(array(
-    'success'      => true,
-    'user'         => $userInfo,
-    'loans'        => $loans,
-    'transactions' => $transactions,
-    'repayments'   => $repayments,
+api_json(array(
+    'success'        => true,
+    'user'           => $userInfo,
+    'loans'          => api_loans($loans),
+    'borrowedLoans'  => api_loans($loans),
+    'lentLoans'      => api_loans($lentLoans),
+    'availableLoans' => api_loans($availableLoans),
+    'transactions'   => api_transactions($transactions),
+    'repayments'     => api_repayments($repayments),
 ));
