@@ -52,7 +52,7 @@ export default function LoanRequestModal({ isOpen, onClose, vault }) {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://194.147.58.241:8091/api/vaults/request_funds.php', {
+      const response = await fetch('http://194.147.58.241:8091/vaults/request_funds.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
