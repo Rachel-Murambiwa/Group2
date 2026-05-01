@@ -13,11 +13,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-// 2. DATABASE CONNECTION (Using the Singleton ONLY)
+// 2. DATABASE CONNECTION
 require_once '../db.php';
 
 try {
-    // This securely grabs the connection from your Database class
     $conn = Database::getInstance();
 } catch(Exception $e) {
     http_response_code(500);
@@ -30,8 +29,8 @@ $data = json_decode(file_get_contents("php://input"));
 
 if(!empty($data->phone) && !empty($data->password)) {
     
-    // 4. FIND THE USER BY PHONE
-    $query = "SELECT * FROM users WHERE phone = :phone LIMIT 1";
+    // 4. FIND THE USER BY PHONE (Explicitly fetching is_admin)
+    $query = "SELECT id, alias, phone, password, is_verified, is_admin FROM users WHERE phone = :phone LIMIT 1";
     $stmt = $conn->prepare($query);
     $stmt->bindParam(":phone", $data->phone);
     $stmt->execute();
@@ -39,38 +38,41 @@ if(!empty($data->phone) && !empty($data->password)) {
 
     if ($user) {
         
-        // 5. CHECK IF THEY FINISHED OTP VERIFICATION
+        // 5. CHECK VERIFICATION
         if ($user['is_verified'] == 0) {
             http_response_code(403);
-            echo json_encode(["error" => "Account not verified. Please register again to get a new OTP."]);
+            echo json_encode(["error" => "Account not verified."]);
             exit();
         }
 
-        // 6. VERIFY THE HASHED PASSWORD
+        // 6. VERIFY PASSWORD
         if (password_verify($data->password, $user['password'])) {
             
-            // Success! Remove sensitive data before sending it back to React
-            unset($user['password']);
-            unset($user['otp_code']);
+            // Success! Prepare clean user object for React
+            // Ensure is_admin is treated as an integer for the ProtectedRoute check
+            $responseData = [
+                "id" => $user['id'],
+                "alias" => $user['alias'],
+                "phone" => $user['phone'],
+                "is_admin" => (int)$user['is_admin'] 
+            ];
             
             http_response_code(200);
             echo json_encode([
                 "message" => "Login successful",
-                "user" => $user 
+                "user" => $responseData 
             ]);
             
         } else {
-            // Password didn't match
             http_response_code(401);
             echo json_encode(["error" => "Incorrect password."]);
         }
     } else {
-        // Phone number not in database
         http_response_code(404);
         echo json_encode(["error" => "Account not found."]);
     }
 } else {
     http_response_code(400);
-    echo json_encode(["error" => "Incomplete data. Phone and password are required."]);
+    echo json_encode(["error" => "Incomplete data."]);
 }
 ?>
