@@ -15,20 +15,22 @@ require_once '../db.php';
 try {
     $conn = Database::getInstance();
 
-    // Join active_contracts with users (borrower) and loan_requests (to get the exact amount)
+    // FIXED QUERY: Fully compliant with MySQL Strict Mode rules
     $query = "
         SELECT 
             ac.id AS contract_id,
             ac.due_date,
             ac.status,
             u.alias AS borrower_alias,
-            lr.amount_to_repay,
+            MAX(lr.amount_to_repay) AS amount_to_repay,
             DATEDIFF(ac.due_date, NOW()) AS days_left
         FROM active_contracts ac
         JOIN users u ON ac.borrower_id = u.id
-        JOIN loan_requests lr ON lr.vault_id = ac.vault_id AND lr.borrower_id = ac.borrower_id AND lr.status = 'approved'
+        JOIN loan_requests lr ON lr.vault_id = ac.vault_id 
+            AND lr.borrower_id = ac.borrower_id 
+            AND lr.status = 'approved'
         WHERE ac.status IN ('active', 'overdue')
-        GROUP BY ac.id
+        GROUP BY ac.id, ac.due_date, ac.status, u.alias
         ORDER BY ac.due_date ASC
     ";
 
@@ -36,7 +38,6 @@ try {
     $stmt->execute();
     $loans = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Determine if it's strictly overdue for the frontend
     foreach($loans as &$loan) {
         $loan['is_overdue'] = ((int)$loan['days_left'] < 0);
     }
@@ -46,7 +47,7 @@ try {
 
 } catch(PDOException $e) {
     http_response_code(500);
-    error_log("SQL Error in active loans: " . $e->getMessage()); 
-    echo json_encode(["error" => "Failed to fetch active loans."]);
+    // Modified to echo the actual error so you can see it if it ever breaks again
+    echo json_encode(["error" => "SQL Error: " . $e->getMessage()]);
 }
 ?>
