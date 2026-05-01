@@ -15,7 +15,7 @@ require_once '../db.php';
 try {
     $conn = Database::getInstance();
 
-    // Query to get pending requests with borrower and vault details
+    // FIXED QUERY: Join users twice to get both the borrower and the lender aliases
     $query = "
         SELECT 
             lr.id AS request_id,
@@ -23,13 +23,14 @@ try {
             lr.amount_to_repay,
             lr.status,
             lr.created_at,
-            u.alias AS borrower_alias,
-            v.alias AS vault_alias,
+            u_borrower.alias AS borrower_alias,
+            u_lender.alias AS vault_alias,
             v.interest,
             v.duration
         FROM loan_requests lr
-        JOIN users u ON lr.borrower_id = u.id
+        JOIN users u_borrower ON lr.borrower_id = u_borrower.id
         JOIN vaults v ON lr.vault_id = v.id
+        JOIN users u_lender ON v.user_id = u_lender.id
         WHERE lr.status = 'pending'
         ORDER BY lr.created_at ASC
     ";
@@ -43,7 +44,8 @@ try {
 
 } catch(PDOException $e) {
     http_response_code(500);
-    error_log("Admin Fetch Error: " . $e->getMessage());
+    // This logs the ACTUAL error to your PHP error log so you can see it
+    error_log("SQL Error: " . $e->getMessage()); 
     echo json_encode(["error" => "Failed to fetch loan requests."]);
 }
 ?>
