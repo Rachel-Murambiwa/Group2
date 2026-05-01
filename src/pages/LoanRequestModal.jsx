@@ -1,25 +1,70 @@
 import { useState } from 'react';
 
 export default function LoanRequestModal({ isOpen, onClose, vault }) {
-  const [requestAmount, setRequestAmount] = useState('');
   const [purpose, setPurpose] = useState('');
   const [agreed, setAgreed] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   if (!isOpen || !vault) return null;
 
-  // Simple calculation for the total repayment amount
+  // Calculate the total repayment based on the FIXED vault amount
   const calculateTotal = () => {
-    if (!requestAmount) return 0;
-    const principal = parseFloat(requestAmount);
+    const principal = parseFloat(vault.amount);
     const interest = principal * (vault.interest / 100);
     return (principal + interest).toFixed(2);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Submitting Loan Request:", { vaultId: vault.id, requestAmount, purpose });
-    // TODO: Connect to backend for GC-18
-    onClose();
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    const savedUser = localStorage.getItem('user');
+    const user = savedUser ? JSON.parse(savedUser) : null;
+    const token = localStorage.getItem('token');
+
+    if (!user || (!user.id && !user.userID)) {
+      setErrorMsg("Please log in again to request funds.");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // NOTE: Using absolute URL without /api/ to match your Docker context
+      const response = await fetch('http://194.147.58.241:8091/vaults/request_funds.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          vaultID: vault.id,
+          borrowerID: user.id || user.userID
+          // Note: 'purpose' is kept for UI/UX feel, but the backend doesn't require it currently.
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccessMsg(data.message || "Request submitted successfully!");
+        // Wait 1.5 seconds so the user can read the success message before closing
+        setTimeout(() => {
+          onClose();
+          // Reload the page to refresh the feed so the requested vault disappears
+          window.location.reload(); 
+        }, 1500);
+      } else {
+        setErrorMsg(data.error || "Failed to submit request.");
+      }
+    } catch (error) {
+      setErrorMsg("Cannot connect to server. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -46,7 +91,8 @@ export default function LoanRequestModal({ isOpen, onClose, vault }) {
             </div>
             <button 
               onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors font-bold"
+              disabled={isLoading}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors font-bold disabled:opacity-50"
             >
               ✕
             </button>
@@ -60,7 +106,7 @@ export default function LoanRequestModal({ isOpen, onClose, vault }) {
             </div>
             <div className="text-right">
               <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Interest & Term</p>
-              <p className="text-sm font-bold text-slate-800">{vault.interest}% • {vault.duration}</p>
+              <p className="text-sm font-bold text-slate-800">{vault.interest}% • {vault.duration} Days</p>
             </div>
           </div>
 
@@ -70,13 +116,11 @@ export default function LoanRequestModal({ isOpen, onClose, vault }) {
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Request Amount (GHS)</label>
               <input 
                 type="number" 
-                max={vault.amount}
-                required
-                value={requestAmount}
-                onChange={(e) => setRequestAmount(e.target.value)}
-                className="w-full p-4 border-2 border-slate-100 rounded-xl bg-slate-50 focus:bg-white focus:border-rich-gold focus:ring-4 focus:ring-rich-gold/20 outline-none transition-all font-bold text-slate-800 text-lg"
-                placeholder="0.00"
+                readOnly
+                value={vault.amount}
+                className="w-full p-4 border-2 border-slate-100 rounded-xl bg-slate-100 text-slate-500 font-bold text-lg cursor-not-allowed"
               />
+              <p className="text-[10px] text-slate-400 mt-1 font-bold tracking-wide">Vaults must be requested in full.</p>
             </div>
 
             <div>
@@ -98,7 +142,7 @@ export default function LoanRequestModal({ isOpen, onClose, vault }) {
                 <span className="text-xl font-black text-ashesi-red">GHS {calculateTotal()}</span>
               </div>
               <p className="text-xs text-slate-400 font-medium">
-                Due {vault.duration} after approval.
+                Due {vault.duration} days after admin approval.
               </p>
             </div>
 
@@ -120,11 +164,15 @@ export default function LoanRequestModal({ isOpen, onClose, vault }) {
               </span>
             </label>
 
+            {errorMsg && <p className="text-sm font-bold text-red-600 text-center">{errorMsg}</p>}
+            {successMsg && <p className="text-sm font-bold text-green-600 text-center">{successMsg}</p>}
+
             <button 
               type="submit" 
-              className="w-full py-4 bg-slate-800 text-white font-bold rounded-xl uppercase tracking-wider hover:bg-rich-gold hover:-translate-y-1 hover:shadow-lg transition-all"
+              disabled={isLoading || successMsg !== ''}
+              className="w-full py-4 bg-slate-800 text-white font-bold rounded-xl uppercase tracking-wider hover:bg-rich-gold hover:-translate-y-1 hover:shadow-lg transition-all disabled:opacity-60 disabled:hover:translate-y-0"
             >
-              Submit Request
+              {isLoading ? 'Submitting...' : 'Submit Request'}
             </button>
           </form>
 
