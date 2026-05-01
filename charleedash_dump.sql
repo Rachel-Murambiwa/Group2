@@ -71,7 +71,7 @@ CREATE TABLE `transactions` (
 
 CREATE TABLE `users` (
   `id` int(11) NOT NULL,
-  `email` varchar(255) NOT NULL,
+  `phone` varchar(255) NOT NULL,
   `password` varchar(255) NOT NULL,
   `alias` varchar(50) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
@@ -125,7 +125,7 @@ ALTER TABLE `transactions`
 --
 ALTER TABLE `users`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `email` (`email`);
+  ADD UNIQUE KEY `phone` (`phone`);
 
 --
 -- Indexes for table `vaults`
