@@ -105,7 +105,7 @@ export default function Register() {
     }
 
     try {
-      const response = await fetch('http://localhost:8091/verify.php', {
+      const response = await fetch('http://194.147.58.241:8091/auth/verify.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: formData.phone, otp: otpString })

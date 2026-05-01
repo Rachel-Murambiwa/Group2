@@ -23,7 +23,7 @@ export default function AdminDashboard() {
     const fetchPendingRequests = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:8091/admin_dashboard.php', {
+            const response = await fetch('http://194.147.58.241:8091/admin_dashboard.php', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'

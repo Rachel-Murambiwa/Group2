@@ -14,7 +14,7 @@ const BorrowerFeed = () => {
     const fetchVaults = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:8091/available_loans.php', {
+        const response = await fetch('http://194.147.58.241:8091/available_loans.php', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
