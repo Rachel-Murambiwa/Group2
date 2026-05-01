@@ -1,29 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 export default function AdminDashboard() {
     const navigate = useNavigate();
     const [requests, setRequests] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
-    const [actionLoading, setActionLoading] = useState(null); // Stores ID of the request being processed
+    const [actionLoading, setActionLoading] = useState(null); 
 
     // Authenticate and Fetch Data
     useEffect(() => {
         const storedUser = JSON.parse(localStorage.getItem('user'));
-        if (!storedUser) {
-            navigate('/login');
+        
+        // Security: Ensure only admins can see this page
+        if (!storedUser || storedUser.is_admin !== 1) {
+            navigate('/dashboard');
             return;
         }
         
-        // Note: In a real app, check if storedUser.role === 'admin' here
         fetchPendingRequests();
     }, [navigate]);
 
     const fetchPendingRequests = async () => {
+        setIsLoading(true);
+        setError('');
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://194.147.58.241:8091/admin_dashboard.php', {
+            // UPDATED URL: Pointing to the new get_requests.php
+            const response = await fetch('http://194.147.58.241:8091/vaults/get_requests.php', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -37,7 +41,7 @@ export default function AdminDashboard() {
                 setError(data.error || 'Failed to load requests.');
             }
         } catch (err) {
-            setError('Cannot connect to server.');
+            setError('Cannot connect to server. Please check your connection.');
         } finally {
             setIsLoading(false);
         }
@@ -49,7 +53,8 @@ export default function AdminDashboard() {
         setActionLoading(requestID);
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:8091/admin_loan_action.php', {
+            // UPDATED URL: Pointing to the new loan_action.php
+            const response = await fetch('http://194.147.58.241:8091/vaults/loan_action.php', {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
@@ -64,9 +69,10 @@ export default function AdminDashboard() {
             const data = await response.json();
             
             if (response.ok) {
-                // Remove the processed request from the UI
-                setRequests(prev => prev.filter(req => req.id !== requestID));
-                alert(`Request ${actionType}d successfully!`);
+                // Remove the processed request from the UI list
+                // Note: The key in your new SQL query is 'request_id'
+                setRequests(prev => prev.filter(req => req.request_id !== requestID));
+                alert(data.message || `Request ${actionType}d successfully!`);
             } else {
                 alert(data.error || `Failed to ${actionType} request.`);
             }
@@ -92,7 +98,7 @@ export default function AdminDashboard() {
                         CharleeDash<span className="text-rich-gold">+</span>
                     </h2>
                     <span className="hidden md:inline-block bg-ashesi-red text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
-                        Admin Portal
+                        Management Portal
                     </span>
                 </div>
                 <button 
@@ -124,8 +130,8 @@ export default function AdminDashboard() {
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
                     <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                         <div>
-                            <h3 className="text-xl font-bold text-slate-800">Loan Applications</h3>
-                            <p className="text-xs text-slate-500 mt-1 font-medium">Review and authorize pending capital requests.</p>
+                            <h3 className="text-xl font-bold text-slate-800">Pending Loan Applications</h3>
+                            <p className="text-xs text-slate-500 mt-1 font-medium">Review and authorize capital requests from the peer network.</p>
                         </div>
                         <button 
                             onClick={fetchPendingRequests}
@@ -155,25 +161,29 @@ export default function AdminDashboard() {
                                 <thead>
                                     <tr className="bg-slate-50 text-[10px] uppercase tracking-widest text-slate-500 border-b border-slate-200">
                                         <th className="p-4 font-bold">Request ID</th>
-                                        <th className="p-4 font-bold">Borrower Alias</th>
-                                        <th className="p-4 font-bold">Amount</th>
-                                        <th className="p-4 font-bold">Duration</th>
-                                        <th className="p-4 font-bold text-center">Actions</th>
+                                        <th className="p-4 font-bold">Borrower</th>
+                                        <th className="p-4 font-bold">Amount (GHS)</th>
+                                        <th className="p-4 font-bold">Repayment</th>
+                                        <th className="p-4 font-bold">Term</th>
+                                        <th className="p-4 font-bold text-center">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {requests.map((req) => (
-                                        <tr key={req.id} className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors">
+                                        <tr key={req.request_id} className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors">
                                             <td className="p-4">
-                                                <span className="font-bold text-slate-700 text-sm">#{req.id}</span>
+                                                <span className="font-bold text-slate-700 text-sm">#{req.request_id}</span>
                                             </td>
                                             <td className="p-4">
                                                 <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-bold">
-                                                    {req.borrower_alias || 'Unknown'}
+                                                    {req.borrower_alias}
                                                 </span>
                                             </td>
-                                            <td className="p-4 font-black text-ashesi-red">
-                                                GHS {req.amount}
+                                            <td className="p-4 font-black text-slate-800">
+                                                {parseFloat(req.requested_amount).toFixed(2)}
+                                            </td>
+                                            <td className="p-4 font-bold text-green-600">
+                                                {parseFloat(req.amount_to_repay).toFixed(2)}
                                             </td>
                                             <td className="p-4 text-sm font-bold text-slate-600">
                                                 {req.duration} Days
@@ -181,18 +191,18 @@ export default function AdminDashboard() {
                                             <td className="p-4">
                                                 <div className="flex justify-center gap-2">
                                                     <button 
-                                                        onClick={() => handleAction(req.id, 'approve')}
-                                                        disabled={actionLoading === req.id}
-                                                        className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-xs font-bold uppercase rounded-lg shadow-sm transition-colors disabled:opacity-50"
+                                                        onClick={() => handleAction(req.request_id, 'approve')}
+                                                        disabled={actionLoading === req.request_id}
+                                                        className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-[10px] font-bold uppercase rounded-lg shadow-sm transition-colors disabled:opacity-50"
                                                     >
-                                                        {actionLoading === req.id ? '...' : 'Approve'}
+                                                        {actionLoading === req.request_id ? '...' : 'Approve'}
                                                     </button>
                                                     <button 
-                                                        onClick={() => handleAction(req.id, 'reject')}
-                                                        disabled={actionLoading === req.id}
-                                                        className="px-4 py-2 bg-slate-200 hover:bg-red-500 hover:text-white text-slate-600 text-xs font-bold uppercase rounded-lg transition-colors disabled:opacity-50"
+                                                        onClick={() => handleAction(req.request_id, 'reject')}
+                                                        disabled={actionLoading === req.request_id}
+                                                        className="px-4 py-2 bg-slate-100 hover:bg-red-500 hover:text-white text-slate-500 text-[10px] font-bold uppercase rounded-lg transition-colors disabled:opacity-50"
                                                     >
-                                                        {actionLoading === req.id ? '...' : 'Reject'}
+                                                        {actionLoading === req.request_id ? '...' : 'Reject'}
                                                     </button>
                                                 </div>
                                             </td>
