@@ -15,7 +15,6 @@ export default function Profile() {
     totalImpact: 0
   });
 
-  // Added 'pending' array to hold the new data
   const [comms, setComms] = useState({ borrowed: [], lent: [], pending: [] });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -52,13 +51,35 @@ export default function Profile() {
     }
   };
 
+  // NEW: Secure Repayment Confirmation
+  const handleConfirmPayment = async (contractId) => {
+    if (!window.confirm("Only click this if you have actually received the MOMO transfer. This action closes the contract and boosts the borrower's trust score!")) return;
+
+    try {
+      const response = await fetch('http://194.147.58.241:8091/vaults/confirm_repayment.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contract_id: contractId })
+      });
+
+      if (response.ok) {
+        alert("Payment Confirmed! Borrower has been rewarded with trust points.");
+        fetchProfileData(userProfile.id); // Refresh stats and lists
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || "Failed to confirm repayment.");
+      }
+    } catch (err) {
+      alert("Connection error. Please try again.");
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     navigate('/login');
   };
 
-  // Updated to accept 'amount' for the new pending message
   const formatWhatsAppLink = (phone, type, alias, amount = null) => {
     const formattedPhone = phone.startsWith('0') ? '233' + phone.substring(1) : phone;
     let text = "";
@@ -68,7 +89,6 @@ export default function Profile() {
     } else if (type === 'lender') {
       text = `Hi ${alias}! I'm ${userProfile.alias} from CharleeDash. Your loan from my vault was approved. Please send me your MOMO number so I can send the funds over.`;
     } else if (type === 'pending_lender') {
-      // NEW: The Pre-Vetting Message
       text = `Hi ${alias}! I'm ${userProfile.alias} from CharleeDash. I saw you requested GHS ${amount} from my vault. I just wanted to reach out and say hello while we wait for the Admin to approve it!`;
     }
     
@@ -161,14 +181,14 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* ACTIVE CONNECTIONS & WHATSAPP */}
+        {/* CONNECTIONS & DISBURSEMENTS */}
         {(comms.borrowed.length > 0 || comms.lent.length > 0 || comms.pending?.length > 0) && (
           <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
             <h3 className="text-xl font-bold text-slate-800 mb-6 border-b border-slate-100 pb-4">Connections & Disbursements</h3>
             
             <div className="space-y-6">
               
-              {/* NEW: If someone requested money from my vault (Pre-Vetting) */}
+              {/* VETTING PHASE (Lender View) */}
               {comms.pending && comms.pending.map(req => (
                 <div key={`p-${req.id}`} className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-200">
                   <div className="flex-1">
@@ -177,27 +197,20 @@ export default function Profile() {
                       <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600">Pending Request on Your Vault</p>
                     </div>
                     <p className="font-black text-slate-800 text-xl mb-1">{req.counterparty_alias}</p>
-                    <p className="text-sm font-medium text-slate-600 mb-4">
-                      Requested <span className="font-bold text-slate-800">GHS {parseFloat(req.requested_amount).toFixed(2)}</span>
-                    </p>
-                    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                      <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                        <strong className="text-slate-800">Vetting Phase:</strong> This request is currently waiting for Admin approval. You can text the borrower now to verify their identity early!
-                      </p>
-                    </div>
+                    <p className="text-sm font-medium text-slate-600">Requested <span className="font-bold text-slate-800">GHS {parseFloat(req.requested_amount).toFixed(2)}</span></p>
                   </div>
                   <a 
                     href={formatWhatsAppLink(req.counterparty_phone, 'pending_lender', req.counterparty_alias, req.requested_amount)} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 px-6 py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-all shadow-md hover:shadow-lg whitespace-nowrap"
+                    className="flex items-center justify-center gap-2 px-6 py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-all shadow-md text-xs uppercase tracking-widest"
                   >
                     <span>💬</span> Vet Borrower
                   </a>
                 </div>
               ))}
 
-              {/* If I borrowed money, show my lenders */}
+              {/* BORROWER VIEW (Funds to receive) */}
               {comms.borrowed.map(contract => (
                 <div key={`b-${contract.id}`} className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-200">
                   <div className="flex-1">
@@ -209,9 +222,9 @@ export default function Profile() {
                     <p className="text-sm font-medium text-slate-600 mb-4">
                       Total repayment of <span className="font-bold text-slate-800">GHS {parseFloat(contract.amount_to_repay).toFixed(2)}</span> due by {new Date(contract.due_date).toLocaleDateString()}
                     </p>
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 shadow-sm">
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                       <p className="text-xs text-amber-900 font-medium leading-relaxed">
-                        <strong className="text-amber-950">Security Protocol:</strong> Contact the lender via WhatsApp to receive your funds. <strong>All transactions must be conducted via Mobile Money (MOMO).</strong>
+                        <strong className="text-amber-950">Security Protocol:</strong> Contact the lender via WhatsApp. <strong>Transactions must be via MOMO</strong> to verify real names and protect your account.
                       </p>
                     </div>
                   </div>
@@ -219,39 +232,47 @@ export default function Profile() {
                     href={formatWhatsAppLink(contract.counterparty_phone, 'borrower', contract.counterparty_alias)} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 px-6 py-4 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl font-bold transition-all shadow-md hover:shadow-lg whitespace-nowrap"
+                    className="flex items-center justify-center gap-2 px-6 py-4 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl font-bold transition-all shadow-md text-xs uppercase tracking-widest"
                   >
                     <span>💬</span> Text Lender
                   </a>
                 </div>
               ))}
 
-              {/* If I lent money, show my borrowers */}
+              {/* LENDER VIEW (Active Contracts to track/confirm) */}
               {comms.lent.map(contract => (
                 <div key={`l-${contract.id}`} className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-200">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600">Action Required: Send Funds</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600">Action Required: Track & Confirm</p>
                     </div>
                     <p className="font-black text-slate-800 text-xl mb-1">{contract.counterparty_alias}</p>
                     <p className="text-sm font-medium text-slate-600 mb-4">
                       Will repay <span className="font-bold text-slate-800">GHS {parseFloat(contract.amount_to_repay).toFixed(2)}</span> to you by {new Date(contract.due_date).toLocaleDateString()}
                     </p>
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 shadow-sm">
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                       <p className="text-xs text-amber-900 font-medium leading-relaxed">
-                        <strong className="text-amber-950">Security Protocol:</strong> Contact the borrower via WhatsApp to disburse the funds. <strong>You must send the money via Mobile Money (MOMO).</strong>
+                        <strong className="text-amber-950">Lender Protocol:</strong> Only click <strong>Confirm Repayment</strong> once the funds have landed in your MOMO account.
                       </p>
                     </div>
                   </div>
-                  <a 
-                    href={formatWhatsAppLink(contract.counterparty_phone, 'lender', contract.counterparty_alias)} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 px-6 py-4 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl font-bold transition-all shadow-md hover:shadow-lg whitespace-nowrap"
-                  >
-                    <span>💬</span> Text Borrower
-                  </a>
+                  <div className="flex flex-col gap-3 min-w-[200px]">
+                    <a 
+                      href={formatWhatsAppLink(contract.counterparty_phone, 'lender', contract.counterparty_alias)} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 px-6 py-3 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl font-bold transition-all shadow-sm text-xs uppercase tracking-widest"
+                    >
+                      <span>💬</span> Text Borrower
+                    </a>
+                    <button 
+                      onClick={() => handleConfirmPayment(contract.id)}
+                      className="px-6 py-3 bg-slate-800 hover:bg-green-600 text-white rounded-xl font-bold transition-all shadow-md text-xs uppercase tracking-widest"
+                    >
+                      Confirm Repayment
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
