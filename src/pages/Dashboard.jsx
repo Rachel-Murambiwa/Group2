@@ -14,7 +14,7 @@ const BorrowerFeed = () => {
     const fetchVaults = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://194.147.58.241:8091/vaults/get_available.php', {
+        const response = await fetch('http://194.147.58.241:8091/api/vaults/get_available.php', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -115,48 +115,70 @@ const BorrowerFeed = () => {
 // 2. COMPONENT: Lender Portfolio UI (Responsive & Live)
 // -------------------------------------------------------------------------
 const LenderPortfolio = () => {
-  const [formData, setFormData] = useState({
-    amount: '',
-    interest: '',
-    duration: '',
-  });
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [formData, setFormData] = useState({ amount: '', interest: '', duration: '' });
+  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // State to hold dynamic portfolio data
+  const [portfolio, setPortfolio] = useState({
+    stats: { total_deployed: 0, projected_returns: 0, active_count: 0, paid_count: 0 },
+    contracts: []
+  });
 
-  // Temporary Dummy Data for display until we fetch live investments
-  const ACTIVE_INVESTMENTS = [
-    { id: 101, alias: "Vault #804", amount: 500, return: "+GHS 25", status: "Active", due: "In 12 Days" },
-    { id: 102, alias: "Vault #211", amount: 200, return: "+GHS 0", status: "Paid", due: "Completed" },
-  ];
+  // Fetch portfolio data from the database
+  const fetchPortfolioData = async () => {
+    const savedUser = localStorage.getItem('user');
+    if (!savedUser) return;
+    
+    const user = JSON.parse(savedUser);
+    
+    try {
+      // NOTE: Using absolute URL to match your architecture
+      const response = await fetch(`http://194.147.58.241:8091/api/vaults/get_lender_stats.php?userID=${user.id || user.userID}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setPortfolio(data);
+      } else {
+        console.error("Failed to fetch portfolio:", data.error);
+      }
+    } catch (err) {
+      console.error("Connection error while fetching portfolio", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchPortfolioData();
+  }, []);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    setMessage('');
-    setError('');
+    setSuccessMsg('');
+    setErrorMsg('');
   };
 
   const handleDeployCapital = async (e) => {
     e.preventDefault();
-    setMessage('');
-    setError('');
+    setSuccessMsg('');
+    setErrorMsg('');
 
     const amount = Number(formData.amount);
     const interest = Number(formData.interest);
     const duration = Number(formData.duration);
 
     if (!amount || amount <= 0) {
-      setError('Enter an amount greater than zero.');
+      setErrorMsg('Enter an amount greater than zero.');
       return;
     }
 
     if (Number.isNaN(interest) || interest < 0 || interest > 15) {
-      setError('Interest must be between 0 and 15%.');
+      setErrorMsg('Interest must be between 0 and 15%.');
       return;
     }
 
     if (!duration || duration <= 0) {
-      setError('Enter a duration of at least 1 day.');
+      setErrorMsg('Enter a duration of at least 1 day.');
       return;
     }
 
@@ -164,7 +186,7 @@ const LenderPortfolio = () => {
     const user = savedUser ? JSON.parse(savedUser) : null;
 
     if (!user?.id && !user?.userID) {
-      setError('Please log in again before deploying capital.');
+      setErrorMsg('Please log in again before deploying capital.');
       return;
     }
 
@@ -172,7 +194,8 @@ const LenderPortfolio = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://194.147.58.241:8091/vaults/create.php', {
+      // NOTE: Using absolute URL to match your architecture
+      const response = await fetch('http://194.147.58.241:8091/api/vaults/create.php', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -189,14 +212,18 @@ const LenderPortfolio = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || 'Could not deploy capital.');
+        setErrorMsg(data.error || 'Could not deploy capital.');
         return;
       }
 
       setFormData({ amount: '', interest: '', duration: '' });
-      setMessage(data.message || 'Capital deployed successfully.');
+      setSuccessMsg(data.message || 'Capital deployed successfully.');
+      
+      // Re-fetch portfolio data to update UI immediately
+      fetchPortfolioData();
+
     } catch (err) {
-      setError('Cannot connect to server. Please try again.');
+      setErrorMsg('Cannot connect to server. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -213,22 +240,33 @@ const LenderPortfolio = () => {
         </div>
       </div>
 
+      {/* Dynamic Stats Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center">
           <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Total Deployed</p>
-          <h4 className="text-2xl md:text-3xl font-bold text-slate-800"><span className="text-base text-slate-400 mr-1">GHS</span>700</h4>
+          <h4 className="text-2xl md:text-3xl font-bold text-slate-800">
+            <span className="text-base text-slate-400 mr-1">GHS</span>
+            {Number(portfolio.stats.total_deployed).toFixed(2)}
+          </h4>
         </div>
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center border-l-4 border-l-rich-gold">
           <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Projected Returns</p>
-          <h4 className="text-2xl md:text-3xl font-bold text-green-600"><span className="text-base text-green-400 mr-1">+GHS</span>25</h4>
+          <h4 className="text-2xl md:text-3xl font-bold text-green-600">
+            <span className="text-base text-green-400 mr-1">+GHS</span>
+            {Number(portfolio.stats.projected_returns).toFixed(2)}
+          </h4>
         </div>
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center sm:col-span-2 md:col-span-1">
           <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Vault Status</p>
-          <h4 className="text-lg md:text-xl font-bold text-slate-700">1 Active / 1 Paid</h4>
+          <h4 className="text-lg md:text-xl font-bold text-slate-700">
+            {portfolio.stats.active_count} Active / {portfolio.stats.paid_count} Paid
+          </h4>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Create Vault Form */}
         <div className="lg:col-span-1 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-1 bg-rich-gold"></div>
           <h4 className="text-lg font-bold text-slate-800 mb-5">Create New Vault</h4>
@@ -249,8 +287,8 @@ const LenderPortfolio = () => {
               </div>
             </div>
             
-            {error && <p className="text-xs font-bold text-red-600">{error}</p>}
-            {message && <p className="text-xs font-bold text-green-600">{message}</p>}
+            {errorMsg && <p className="text-xs font-bold text-red-600">{errorMsg}</p>}
+            {successMsg && <p className="text-xs font-bold text-green-600">{successMsg}</p>}
             
             <button disabled={isSubmitting} className="w-full py-3 mt-2 bg-slate-800 text-white font-bold rounded-lg uppercase tracking-wider text-xs hover:bg-rich-gold hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed">
               {isSubmitting ? 'Deploying...' : 'Deploy Capital'}
@@ -258,28 +296,62 @@ const LenderPortfolio = () => {
           </form>
         </div>
 
+        {/* Dynamic Active Contracts List */}
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
           <h4 className="text-lg font-bold text-slate-800 mb-5">Active Contracts</h4>
           <div className="space-y-4">
-            {ACTIVE_INVESTMENTS.map((inv) => (
-              <div key={inv.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors gap-4">
-                <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${inv.status === 'Paid' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
-                    {inv.status === 'Paid' ? '✓' : '↻'}
-                  </div>
-                  <div>
-                    <h5 className="font-bold text-slate-800 text-sm">{inv.alias}</h5>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{inv.due}</p>
-                  </div>
-                </div>
-                <div className="text-left sm:text-right w-full sm:w-auto border-t sm:border-0 pt-2 sm:pt-0">
-                  <h5 className="font-bold text-slate-800 text-sm">GHS {inv.amount}</h5>
-                  <p className={`text-[10px] font-bold tracking-wider ${inv.status === 'Paid' ? 'text-green-500' : 'text-rich-gold'}`}>
-                    {inv.return}
-                  </p>
-                </div>
+            {portfolio.contracts.length === 0 ? (
+              <div className="text-center py-10 text-slate-400 font-medium">
+                You have not deployed any vaults yet.
               </div>
-            ))}
+            ) : (
+              portfolio.contracts.map((contract) => {
+                const projectedReturn = (contract.amount * (contract.interest / 100)).toFixed(2);
+                
+                let statusIcon = '🕒';
+                let statusClass = 'bg-slate-100 text-slate-600';
+                let statusText = 'Pending Approval';
+                
+                if (contract.status === 'active') {
+                  statusIcon = '↻';
+                  statusClass = 'bg-amber-100 text-amber-600';
+                  // Basic calculation for days left
+                  if (contract.due_date) {
+                    const due = new Date(contract.due_date);
+                    const now = new Date();
+                    const diffTime = due - now;
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    statusText = diffDays >= 0 ? `Due in ${diffDays} Days` : `Overdue by ${Math.abs(diffDays)} Days`;
+                  } else {
+                     statusText = "Active";
+                  }
+                } else if (contract.status === 'paid') {
+                  statusIcon = '✓';
+                  statusClass = 'bg-green-100 text-green-600';
+                  statusText = 'Completed';
+                }
+
+                return (
+                  <div key={contract.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${statusClass}`}>
+                        {statusIcon}
+                      </div>
+                      <div>
+                        <h5 className="font-bold text-slate-800 text-sm">Vault #{contract.id}</h5>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{statusText}</p>
+                      </div>
+                    </div>
+                    <div className="text-left sm:text-right w-full sm:w-auto border-t sm:border-0 pt-2 sm:pt-0">
+                      <h5 className="font-bold text-slate-800 text-sm">GHS {contract.amount}</h5>
+                      <p className={`text-[10px] font-bold tracking-wider ${contract.status === 'paid' ? 'text-green-500' : 'text-rich-gold'}`}>
+                        +GHS {projectedReturn}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>
