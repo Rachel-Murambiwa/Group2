@@ -6,7 +6,7 @@ export default function LoginView({ formData, errors, onChange, onSubmit }) {
     <div 
       className="min-h-screen w-full flex justify-center items-center font-sans bg-cover bg-center bg-fixed px-4 py-12"
       style={{
-        backgroundImage: `linear-gradient(rgba(138, 21, 56, 0.85), rgba(10, 10, 10, 0.8)), url('${courtyard.jpg}')`
+        backgroundImage: `linear-gradient(rgba(138, 21, 56, 0.85), rgba(10, 10, 10, 0.8)), url('${courtyardImage}')`
       }}
     >
       <div className="w-full max-w-md bg-white p-8 sm:p-10 rounded-2xl shadow-2xl border-t-4 border-ashesi-red relative z-10">
