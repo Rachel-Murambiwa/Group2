@@ -14,7 +14,9 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        navigateFallback: '/index.html' // Essential for React Router on live deployments
+        navigateFallback: '/index.html',
+        // INCREASED FILE SIZE LIMIT TO 10MB to allow your logos to pass the build
+        maximumFileSizeToCacheInBytes: 10485760 
       },
       manifest: {
         name: 'CharleeDash+',
