@@ -14,7 +14,8 @@ const BorrowerFeed = () => {
     const fetchVaults = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://194.147.58.241:8091/api/vaults/get_available.php', {
+        // FIXED URL: Removed the extra /api/
+        const response = await fetch('http://194.147.58.241:8091/vaults/get_available.php', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -23,7 +24,7 @@ const BorrowerFeed = () => {
         const data = await response.json();
         
         if (response.ok) {
-          setVaults(data.vaults);
+          setVaults(data.vaults || []);
         } else {
           console.error("Failed to fetch vaults:", data.error);
         }
@@ -116,69 +117,71 @@ const BorrowerFeed = () => {
 // -------------------------------------------------------------------------
 const LenderPortfolio = () => {
   const [formData, setFormData] = useState({ amount: '', interest: '', duration: '' });
-  const [successMsg, setSuccessMsg] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // State to hold dynamic portfolio data
+
+  // NEW: State to hold the live data from the database
   const [portfolio, setPortfolio] = useState({
     stats: { total_deployed: 0, projected_returns: 0, active_count: 0, paid_count: 0 },
     contracts: []
   });
 
-  // Fetch portfolio data from the database
+  // NEW: Function to fetch live stats from the server
   const fetchPortfolioData = async () => {
     const savedUser = localStorage.getItem('user');
     if (!savedUser) return;
     
     const user = JSON.parse(savedUser);
+    const userId = user.id || user.userID;
     
     try {
-      // NOTE: Using absolute URL to match your architecture
-      const response = await fetch(`http://194.147.58.241:8091/api/vaults/get_lender_stats.php?userID=${user.id || user.userID}`);
+      // FIXED URL: Removed the extra /api/
+      const response = await fetch(`http://194.147.58.241:8091/vaults/get_lender_stats.php?userID=${userId}`);
       const data = await response.json();
       
       if (response.ok) {
         setPortfolio(data);
       } else {
-        console.error("Failed to fetch portfolio:", data.error);
+        console.error("Failed to load portfolio:", data.error);
       }
     } catch (err) {
       console.error("Connection error while fetching portfolio", err);
     }
   };
 
+  // Run the fetch function as soon as the Lender tab loads
   useEffect(() => {
     fetchPortfolioData();
   }, []);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    setSuccessMsg('');
-    setErrorMsg('');
+    setMessage('');
+    setError('');
   };
 
   const handleDeployCapital = async (e) => {
     e.preventDefault();
-    setSuccessMsg('');
-    setErrorMsg('');
+    setMessage('');
+    setError('');
 
     const amount = Number(formData.amount);
     const interest = Number(formData.interest);
     const duration = Number(formData.duration);
 
     if (!amount || amount <= 0) {
-      setErrorMsg('Enter an amount greater than zero.');
+      setError('Enter an amount greater than zero.');
       return;
     }
 
     if (Number.isNaN(interest) || interest < 0 || interest > 15) {
-      setErrorMsg('Interest must be between 0 and 15%.');
+      setError('Interest must be between 0 and 15%.');
       return;
     }
 
     if (!duration || duration <= 0) {
-      setErrorMsg('Enter a duration of at least 1 day.');
+      setError('Enter a duration of at least 1 day.');
       return;
     }
 
@@ -186,7 +189,7 @@ const LenderPortfolio = () => {
     const user = savedUser ? JSON.parse(savedUser) : null;
 
     if (!user?.id && !user?.userID) {
-      setErrorMsg('Please log in again before deploying capital.');
+      setError('Please log in again before deploying capital.');
       return;
     }
 
@@ -194,8 +197,8 @@ const LenderPortfolio = () => {
 
     try {
       const token = localStorage.getItem('token');
-      // NOTE: Using absolute URL to match your architecture
-      const response = await fetch('http://194.147.58.241:8091/api/vaults/create.php', {
+      // FIXED URL: Removed the extra /api/
+      const response = await fetch('http://194.147.58.241:8091/vaults/create.php', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -212,18 +215,18 @@ const LenderPortfolio = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        setErrorMsg(data.error || 'Could not deploy capital.');
+        setError(data.error || 'Could not deploy capital.');
         return;
       }
 
       setFormData({ amount: '', interest: '', duration: '' });
-      setSuccessMsg(data.message || 'Capital deployed successfully.');
+      setMessage(data.message || 'Capital deployed successfully.');
       
-      // Re-fetch portfolio data to update UI immediately
+      // NEW: Refresh the stats immediately after successful deployment
       fetchPortfolioData();
-
+      
     } catch (err) {
-      setErrorMsg('Cannot connect to server. Please try again.');
+      setError('Cannot connect to server. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -240,7 +243,7 @@ const LenderPortfolio = () => {
         </div>
       </div>
 
-      {/* Dynamic Stats Row */}
+      {/* DYNAMIC STATS DISPLAY */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center">
           <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Total Deployed</p>
@@ -266,7 +269,6 @@ const LenderPortfolio = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Create Vault Form */}
         <div className="lg:col-span-1 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-1 bg-rich-gold"></div>
           <h4 className="text-lg font-bold text-slate-800 mb-5">Create New Vault</h4>
@@ -287,8 +289,8 @@ const LenderPortfolio = () => {
               </div>
             </div>
             
-            {errorMsg && <p className="text-xs font-bold text-red-600">{errorMsg}</p>}
-            {successMsg && <p className="text-xs font-bold text-green-600">{successMsg}</p>}
+            {error && <p className="text-xs font-bold text-red-600">{error}</p>}
+            {message && <p className="text-xs font-bold text-green-600">{message}</p>}
             
             <button disabled={isSubmitting} className="w-full py-3 mt-2 bg-slate-800 text-white font-bold rounded-lg uppercase tracking-wider text-xs hover:bg-rich-gold hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed">
               {isSubmitting ? 'Deploying...' : 'Deploy Capital'}
@@ -296,7 +298,7 @@ const LenderPortfolio = () => {
           </form>
         </div>
 
-        {/* Dynamic Active Contracts List */}
+        {/* DYNAMIC CONTRACTS DISPLAY */}
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
           <h4 className="text-lg font-bold text-slate-800 mb-5">Active Contracts</h4>
           <div className="space-y-4">
@@ -305,46 +307,45 @@ const LenderPortfolio = () => {
                 You have not deployed any vaults yet.
               </div>
             ) : (
-              portfolio.contracts.map((contract) => {
-                const projectedReturn = (contract.amount * (contract.interest / 100)).toFixed(2);
+              portfolio.contracts.map((inv) => {
+                // Calculate projected return safely
+                const projectedReturn = (inv.amount * (inv.interest / 100)).toFixed(2);
                 
+                // Set UI indicators based on status
                 let statusIcon = '🕒';
                 let statusClass = 'bg-slate-100 text-slate-600';
                 let statusText = 'Pending Approval';
                 
-                if (contract.status === 'active') {
+                if (inv.status === 'active') {
                   statusIcon = '↻';
                   statusClass = 'bg-amber-100 text-amber-600';
-                  // Basic calculation for days left
-                  if (contract.due_date) {
-                    const due = new Date(contract.due_date);
-                    const now = new Date();
-                    const diffTime = due - now;
+                  if (inv.due_date) {
+                    const diffTime = new Date(inv.due_date) - new Date();
                     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                     statusText = diffDays >= 0 ? `Due in ${diffDays} Days` : `Overdue by ${Math.abs(diffDays)} Days`;
                   } else {
-                     statusText = "Active";
+                    statusText = "Active";
                   }
-                } else if (contract.status === 'paid') {
+                } else if (inv.status === 'paid') {
                   statusIcon = '✓';
                   statusClass = 'bg-green-100 text-green-600';
                   statusText = 'Completed';
                 }
 
                 return (
-                  <div key={contract.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors gap-4">
+                  <div key={inv.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors gap-4">
                     <div className="flex items-center gap-4">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${statusClass}`}>
                         {statusIcon}
                       </div>
                       <div>
-                        <h5 className="font-bold text-slate-800 text-sm">Vault #{contract.id}</h5>
+                        <h5 className="font-bold text-slate-800 text-sm">Vault #{inv.id}</h5>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{statusText}</p>
                       </div>
                     </div>
                     <div className="text-left sm:text-right w-full sm:w-auto border-t sm:border-0 pt-2 sm:pt-0">
-                      <h5 className="font-bold text-slate-800 text-sm">GHS {contract.amount}</h5>
-                      <p className={`text-[10px] font-bold tracking-wider ${contract.status === 'paid' ? 'text-green-500' : 'text-rich-gold'}`}>
+                      <h5 className="font-bold text-slate-800 text-sm">GHS {inv.amount}</h5>
+                      <p className={`text-[10px] font-bold tracking-wider ${inv.status === 'paid' ? 'text-green-500' : 'text-rich-gold'}`}>
                         +GHS {projectedReturn}
                       </p>
                     </div>
