@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: db
--- Generation Time: May 01, 2026 at 04:55 PM
+-- Generation Time: May 01, 2026 at 05:22 PM
 -- Server version: 8.0.45
 -- PHP Version: 8.3.26
 
@@ -35,6 +35,13 @@ CREATE TABLE `active_contracts` (
   `status` enum('active','completed') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT 'active'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `active_contracts`
+--
+
+INSERT INTO `active_contracts` (`id`, `vault_id`, `borrower_id`, `due_date`, `status`) VALUES
+(2, 4, 9, '2026-05-13', 'active');
+
 -- --------------------------------------------------------
 
 --
@@ -56,7 +63,7 @@ CREATE TABLE `loan_requests` (
 --
 
 INSERT INTO `loan_requests` (`id`, `vault_id`, `borrower_id`, `requested_amount`, `amount_to_repay`, `status`, `created_at`) VALUES
-(2, 4, 9, 150.00, 157.50, 'pending', '2026-05-01 16:27:56'),
+(2, 4, 9, 150.00, 157.50, 'approved', '2026-05-01 16:27:56'),
 (3, 4, 5, 50.00, 52.50, 'pending', '2026-05-01 16:35:50');
 
 -- --------------------------------------------------------
@@ -68,10 +75,17 @@ INSERT INTO `loan_requests` (`id`, `vault_id`, `borrower_id`, `requested_amount`
 CREATE TABLE `transactions` (
   `id` int NOT NULL,
   `user_id` int NOT NULL,
-  `type` enum('deposit','withdrawal','loan_disbursed','repayment') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `type` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
   `amount` decimal(10,2) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `transactions`
+--
+
+INSERT INTO `transactions` (`id`, `user_id`, `type`, `amount`, `created_at`) VALUES
+(1, 9, 'loan_disbursement', 150.00, '2026-05-01 17:21:15');
 
 -- --------------------------------------------------------
 
@@ -184,7 +198,7 @@ ALTER TABLE `vaults`
 -- AUTO_INCREMENT for table `active_contracts`
 --
 ALTER TABLE `active_contracts`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `loan_requests`
@@ -196,7 +210,7 @@ ALTER TABLE `loan_requests`
 -- AUTO_INCREMENT for table `transactions`
 --
 ALTER TABLE `transactions`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `users`
