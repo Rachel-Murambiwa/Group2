@@ -15,13 +15,9 @@ export default function Profile() {
     totalImpact: 0
   });
 
-  const [comms, setComms] = useState({ borrowed: [], lent: [] });
+  // Added 'pending' array to hold the new data
+  const [comms, setComms] = useState({ borrowed: [], lent: [], pending: [] });
   const [isLoading, setIsLoading] = useState(true);
-
-  // Settings State
-  const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
-  const [emailNotifs, setEmailNotifs] = useState(true);
-  const [twoFactor, setTwoFactor] = useState(false);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
@@ -56,20 +52,26 @@ export default function Profile() {
     }
   };
 
-  const handlePasswordChange = (e) => {
-    e.preventDefault();
-    setPasswords({ current: '', new: '', confirm: '' });
-    alert("Password updated successfully!");
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    navigate('/login');
   };
 
-  const formatWhatsAppLink = (phone, type, alias) => {
+  // Updated to accept 'amount' for the new pending message
+  const formatWhatsAppLink = (phone, type, alias, amount = null) => {
     const formattedPhone = phone.startsWith('0') ? '233' + phone.substring(1) : phone;
     let text = "";
+    
     if (type === 'borrower') {
       text = `Hi ${alias}! I'm ${userProfile.alias} from CharleeDash. My loan request from your vault was just approved. Let me know what your MOMO number is so we can proceed!`;
-    } else {
+    } else if (type === 'lender') {
       text = `Hi ${alias}! I'm ${userProfile.alias} from CharleeDash. Your loan from my vault was approved. Please send me your MOMO number so I can send the funds over.`;
+    } else if (type === 'pending_lender') {
+      // NEW: The Pre-Vetting Message
+      text = `Hi ${alias}! I'm ${userProfile.alias} from CharleeDash. I saw you requested GHS ${amount} from my vault. I just wanted to reach out and say hello while we wait for the Admin to approve it!`;
     }
+    
     return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(text)}`;
   };
 
@@ -78,14 +80,23 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen w-full bg-slate-50 font-sans pb-12">
-      <header className="bg-white shadow-sm border-b-2 border-slate-200 px-10 py-5 flex justify-between items-center sticky top-0 z-20">
+      <header className="bg-white shadow-sm border-b-2 border-slate-200 px-6 md:px-10 py-5 flex justify-between items-center sticky top-0 z-20">
         <div className="flex items-center gap-4">
           <Link to="/dashboard" className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-ashesi-red hover:text-white transition-all text-decoration-none">
             &larr;
           </Link>
-          <h2 className="text-ashesi-red text-2xl font-bold tracking-tight m-0">CharleeDash<span className="text-rich-gold">+</span></h2>
+          <h2 className="text-ashesi-red text-2xl font-bold tracking-tight m-0 hidden md:block">CharleeDash<span className="text-rich-gold">+</span></h2>
         </div>
-        <div className="text-sm font-bold text-slate-400 uppercase tracking-wider">Identity Vault</div>
+        
+        <div className="flex items-center gap-6">
+          <div className="text-sm font-bold text-slate-400 uppercase tracking-wider hidden sm:block">Identity Vault</div>
+          <button 
+            onClick={handleLogout} 
+            className="px-4 py-2 bg-transparent border-2 border-slate-200 rounded-lg text-slate-500 font-bold text-[10px] uppercase transition-all hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+          >
+            Sign Out
+          </button>
+        </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-6 mt-10 space-y-8">
@@ -151,11 +162,41 @@ export default function Profile() {
         </div>
 
         {/* ACTIVE CONNECTIONS & WHATSAPP */}
-        {(comms.borrowed.length > 0 || comms.lent.length > 0) && (
+        {(comms.borrowed.length > 0 || comms.lent.length > 0 || comms.pending?.length > 0) && (
           <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
-            <h3 className="text-xl font-bold text-slate-800 mb-6 border-b border-slate-100 pb-4">Active Contracts & Disbursements</h3>
+            <h3 className="text-xl font-bold text-slate-800 mb-6 border-b border-slate-100 pb-4">Connections & Disbursements</h3>
             
             <div className="space-y-6">
+              
+              {/* NEW: If someone requested money from my vault (Pre-Vetting) */}
+              {comms.pending && comms.pending.map(req => (
+                <div key={`p-${req.id}`} className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-200">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600">Pending Request on Your Vault</p>
+                    </div>
+                    <p className="font-black text-slate-800 text-xl mb-1">{req.counterparty_alias}</p>
+                    <p className="text-sm font-medium text-slate-600 mb-4">
+                      Requested <span className="font-bold text-slate-800">GHS {parseFloat(req.requested_amount).toFixed(2)}</span>
+                    </p>
+                    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                      <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                        <strong className="text-slate-800">Vetting Phase:</strong> This request is currently waiting for Admin approval. You can text the borrower now to verify their identity early!
+                      </p>
+                    </div>
+                  </div>
+                  <a 
+                    href={formatWhatsAppLink(req.counterparty_phone, 'pending_lender', req.counterparty_alias, req.requested_amount)} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 px-6 py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-all shadow-md hover:shadow-lg whitespace-nowrap"
+                  >
+                    <span>💬</span> Vet Borrower
+                  </a>
+                </div>
+              ))}
+
               {/* If I borrowed money, show my lenders */}
               {comms.borrowed.map(contract => (
                 <div key={`b-${contract.id}`} className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-200">
@@ -170,7 +211,7 @@ export default function Profile() {
                     </p>
                     <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 shadow-sm">
                       <p className="text-xs text-amber-900 font-medium leading-relaxed">
-                        <strong className="text-amber-950">Security Protocol:</strong> Contact the lender via WhatsApp to receive your funds. <strong>All transactions must be conducted via Mobile Money (MOMO).</strong> This ensures the real names of both parties are recorded by the telecom network, providing verified identity protection in the event of a dispute.
+                        <strong className="text-amber-950">Security Protocol:</strong> Contact the lender via WhatsApp to receive your funds. <strong>All transactions must be conducted via Mobile Money (MOMO).</strong>
                       </p>
                     </div>
                   </div>
@@ -199,7 +240,7 @@ export default function Profile() {
                     </p>
                     <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 shadow-sm">
                       <p className="text-xs text-amber-900 font-medium leading-relaxed">
-                        <strong className="text-amber-950">Security Protocol:</strong> Contact the borrower via WhatsApp to disburse the funds. <strong>You must send the money via Mobile Money (MOMO).</strong> The MOMO name serves as real-identity verification, protecting your capital if the borrower fails to repay.
+                        <strong className="text-amber-950">Security Protocol:</strong> Contact the borrower via WhatsApp to disburse the funds. <strong>You must send the money via Mobile Money (MOMO).</strong>
                       </p>
                     </div>
                   </div>

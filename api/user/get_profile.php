@@ -24,24 +24,20 @@ try {
     $conn = Database::getInstance();
 
     // 1. CALCULATE DYNAMIC STATS
-    // Vaults Funded
     $stmt = $conn->prepare("SELECT COUNT(*) FROM vaults WHERE user_id = ?");
     $stmt->execute([$userID]);
     $vaultsFunded = $stmt->fetchColumn();
 
-    // Total Impact (Total amount this user has borrowed successfully)
     $stmt = $conn->prepare("SELECT SUM(requested_amount) FROM loan_requests WHERE borrower_id = ? AND status = 'approved'");
     $stmt->execute([$userID]);
     $totalImpact = $stmt->fetchColumn() ?: 0;
 
-    // Trust Score Calculation (Base 500 + 50 per vault funded + 10 per successful borrow)
     $stmt = $conn->prepare("SELECT COUNT(*) FROM loan_requests WHERE borrower_id = ? AND status = 'approved'");
     $stmt->execute([$userID]);
     $approvedLoans = $stmt->fetchColumn();
     $trustScore = 500 + ($vaultsFunded * 50) + ($approvedLoans * 10);
 
     // 2. FETCH ACTIVE COMMS (Where User is the BORROWER)
-    // We need the Lender's phone number!
     $stmt = $conn->prepare("
         SELECT ac.id, lr.amount_to_repay, ac.due_date, u_lender.alias AS counterparty_alias, u_lender.phone AS counterparty_phone
         FROM active_contracts ac
@@ -54,7 +50,6 @@ try {
     $borrowedContracts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // 3. FETCH ACTIVE COMMS (Where User is the LENDER)
-    // We need the Borrower's phone number!
     $stmt = $conn->prepare("
         SELECT ac.id, lr.amount_to_repay, ac.due_date, u_borrower.alias AS counterparty_alias, u_borrower.phone AS counterparty_phone
         FROM active_contracts ac
@@ -66,17 +61,29 @@ try {
     $stmt->execute([$userID]);
     $lentContracts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // 4. NEW: FETCH PENDING REQUESTS (Where User is the LENDER and someone wants their money)
+    $stmt = $conn->prepare("
+        SELECT lr.id, lr.requested_amount, u_borrower.alias AS counterparty_alias, u_borrower.phone AS counterparty_phone
+        FROM loan_requests lr
+        JOIN vaults v ON lr.vault_id = v.id
+        JOIN users u_borrower ON lr.borrower_id = u_borrower.id
+        WHERE v.user_id = ? AND lr.status = 'pending'
+    ");
+    $stmt->execute([$userID]);
+    $pendingRequests = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
     http_response_code(200);
     echo json_encode([
         "stats" => [
             "trustScore" => $trustScore,
             "vaultsFunded" => $vaultsFunded,
             "totalImpact" => $totalImpact,
-            "repaymentRate" => "100%" // Hardcoded until we build repayment logic
+            "repaymentRate" => "100%" 
         ],
         "comms" => [
             "borrowed" => $borrowedContracts,
-            "lent" => $lentContracts
+            "lent" => $lentContracts,
+            "pending" => $pendingRequests // Send the pending requests to React!
         ]
     ]);
 
