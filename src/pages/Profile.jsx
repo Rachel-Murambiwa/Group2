@@ -62,14 +62,13 @@ export default function Profile() {
     alert("Password updated successfully!");
   };
 
-  // Helper to format 059... into 23359... for the WhatsApp API
   const formatWhatsAppLink = (phone, type, alias) => {
     const formattedPhone = phone.startsWith('0') ? '233' + phone.substring(1) : phone;
     let text = "";
     if (type === 'borrower') {
-      text = `Hi ${alias}! I'm ${userProfile.alias} from CharleeDash. I just got approved for the loan from your vault! Reaching out to coordinate.`;
+      text = `Hi ${alias}! I'm ${userProfile.alias} from CharleeDash. My loan request from your vault was just approved. Let me know what your MOMO number is so we can proceed!`;
     } else {
-      text = `Hi ${alias}! I'm ${userProfile.alias} from CharleeDash. I saw your loan from my vault was approved! Reaching out to say hello.`;
+      text = `Hi ${alias}! I'm ${userProfile.alias} from CharleeDash. Your loan from my vault was approved. Please send me your MOMO number so I can send the funds over.`;
     }
     return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(text)}`;
   };
@@ -151,46 +150,66 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* NEW: ACTIVE CONNECTIONS & WHATSAPP */}
+        {/* ACTIVE CONNECTIONS & WHATSAPP */}
         {(comms.borrowed.length > 0 || comms.lent.length > 0) && (
           <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
-            <h3 className="text-xl font-bold text-slate-800 mb-6 border-b border-slate-100 pb-4">Active Contracts & Comms</h3>
+            <h3 className="text-xl font-bold text-slate-800 mb-6 border-b border-slate-100 pb-4">Active Contracts & Disbursements</h3>
             
-            <div className="space-y-4">
+            <div className="space-y-6">
               {/* If I borrowed money, show my lenders */}
               {comms.borrowed.map(contract => (
-                <div key={`b-${contract.id}`} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-ashesi-red mb-1">You Owe Them</p>
-                    <p className="font-bold text-slate-800 text-lg">{contract.counterparty_alias}</p>
-                    <p className="text-sm font-medium text-slate-500">GHS {parseFloat(contract.amount_to_repay).toFixed(2)} due by {new Date(contract.due_date).toLocaleDateString()}</p>
+                <div key={`b-${contract.id}`} className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-200">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-green-600">Funds Ready for Disbursement</p>
+                    </div>
+                    <p className="font-black text-slate-800 text-xl mb-1">{contract.counterparty_alias}</p>
+                    <p className="text-sm font-medium text-slate-600 mb-4">
+                      Total repayment of <span className="font-bold text-slate-800">GHS {parseFloat(contract.amount_to_repay).toFixed(2)}</span> due by {new Date(contract.due_date).toLocaleDateString()}
+                    </p>
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 shadow-sm">
+                      <p className="text-xs text-amber-900 font-medium leading-relaxed">
+                        <strong className="text-amber-950">Security Protocol:</strong> Contact the lender via WhatsApp to receive your funds. <strong>All transactions must be conducted via Mobile Money (MOMO).</strong> This ensures the real names of both parties are recorded by the telecom network, providing verified identity protection in the event of a dispute.
+                      </p>
+                    </div>
                   </div>
                   <a 
                     href={formatWhatsAppLink(contract.counterparty_phone, 'borrower', contract.counterparty_alias)} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-5 py-3 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl font-bold transition-colors shadow-sm"
+                    className="flex items-center justify-center gap-2 px-6 py-4 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl font-bold transition-all shadow-md hover:shadow-lg whitespace-nowrap"
                   >
-                    <span>💬</span> Chat on WhatsApp
+                    <span>💬</span> Text Lender
                   </a>
                 </div>
               ))}
 
               {/* If I lent money, show my borrowers */}
               {comms.lent.map(contract => (
-                <div key={`l-${contract.id}`} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-green-600 mb-1">They Owe You</p>
-                    <p className="font-bold text-slate-800 text-lg">{contract.counterparty_alias}</p>
-                    <p className="text-sm font-medium text-slate-500">GHS {parseFloat(contract.amount_to_repay).toFixed(2)} due by {new Date(contract.due_date).toLocaleDateString()}</p>
+                <div key={`l-${contract.id}`} className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-200">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600">Action Required: Send Funds</p>
+                    </div>
+                    <p className="font-black text-slate-800 text-xl mb-1">{contract.counterparty_alias}</p>
+                    <p className="text-sm font-medium text-slate-600 mb-4">
+                      Will repay <span className="font-bold text-slate-800">GHS {parseFloat(contract.amount_to_repay).toFixed(2)}</span> to you by {new Date(contract.due_date).toLocaleDateString()}
+                    </p>
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 shadow-sm">
+                      <p className="text-xs text-amber-900 font-medium leading-relaxed">
+                        <strong className="text-amber-950">Security Protocol:</strong> Contact the borrower via WhatsApp to disburse the funds. <strong>You must send the money via Mobile Money (MOMO).</strong> The MOMO name serves as real-identity verification, protecting your capital if the borrower fails to repay.
+                      </p>
+                    </div>
                   </div>
                   <a 
                     href={formatWhatsAppLink(contract.counterparty_phone, 'lender', contract.counterparty_alias)} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-5 py-3 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl font-bold transition-colors shadow-sm"
+                    className="flex items-center justify-center gap-2 px-6 py-4 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-xl font-bold transition-all shadow-md hover:shadow-lg whitespace-nowrap"
                   >
-                    <span>💬</span> Message Borrower
+                    <span>💬</span> Text Borrower
                   </a>
                 </div>
               ))}
