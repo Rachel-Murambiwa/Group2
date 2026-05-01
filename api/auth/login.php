@@ -1,19 +1,16 @@
 <?php
-// Timezone Sync
+// api/auth/login.php
 date_default_timezone_set('Africa/Accra');
-
-// 1. HEADERS - The CORS Gatekeeper
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
 
-// 2. DATABASE CONNECTION
 require_once '../db.php';
 
 try {
@@ -24,12 +21,10 @@ try {
     exit();
 }
 
-// 3. GET DATA FROM REACT
 $data = json_decode(file_get_contents("php://input"));
 
 if(!empty($data->phone) && !empty($data->password)) {
     
-    // 4. FIND THE USER BY PHONE (Explicitly fetching is_admin)
     $query = "SELECT id, alias, phone, password, is_verified, is_admin FROM users WHERE phone = :phone LIMIT 1";
     $stmt = $conn->prepare($query);
     $stmt->bindParam(":phone", $data->phone);
@@ -37,19 +32,26 @@ if(!empty($data->phone) && !empty($data->password)) {
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($user) {
-        
-        // 5. CHECK VERIFICATION
         if ($user['is_verified'] == 0) {
             http_response_code(403);
             echo json_encode(["error" => "Account not verified."]);
             exit();
         }
 
-        // 6. VERIFY PASSWORD
         if (password_verify($data->password, $user['password'])) {
             
-            // Success! Prepare clean user object for React
-            // Ensure is_admin is treated as an integer for the ProtectedRoute check
+            // --- NEW SESSION LOGIC ---
+            // 1. Generate a secure, random token
+            $sessionToken = bin2hex(random_bytes(32)); 
+            
+            // 2. Set expiration for 2 hours from now
+            $expiry = date('Y-m-d H:i:s', strtotime('+2 hours'));
+
+            // 3. Save the token to the database
+            $updateStmt = $conn->prepare("UPDATE users SET session_token = ?, token_expiry = ? WHERE id = ?");
+            $updateStmt->execute([$sessionToken, $expiry, $user['id']]);
+
+            // Prepare clean user object for React
             $responseData = [
                 "id" => $user['id'],
                 "alias" => $user['alias'],
@@ -60,6 +62,7 @@ if(!empty($data->phone) && !empty($data->password)) {
             http_response_code(200);
             echo json_encode([
                 "message" => "Login successful",
+                "token" => $sessionToken, // Send the REAL token to React!
                 "user" => $responseData 
             ]);
             

@@ -7,7 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile'; 
 import LoanRequestModal from './pages/LoanRequestModal'; 
 import AdminDashboard from './pages/AdminDashboard';
-import ProtectedRoute from './components/ProtectedRoute'; // <-- Security Wrapper
+import SessionGuard from './components/SessionGuard'; // <-- The New Security Bouncer
 
 const Verify = () => (
   <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -25,30 +25,31 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/verify" element={<Verify />} />
 
-        {/* SECURE STUDENT ROUTES (Requires Login + 10min Timeout) */}
+        {/* SECURE STUDENT ROUTES (Database-Backed Session Timer) */}
         <Route path="/dashboard" element={
-          <ProtectedRoute>
+          <SessionGuard>
             <Dashboard />
-          </ProtectedRoute>
+          </SessionGuard>
         } /> 
         
         <Route path="/profile" element={
-          <ProtectedRoute>
+          <SessionGuard>
             <Profile />
-          </ProtectedRoute>
+          </SessionGuard>
         } /> 
         
         <Route path="/loan-request" element={
-          <ProtectedRoute>
+          <SessionGuard>
             <LoanRequestModal />
-          </ProtectedRoute>
+          </SessionGuard>
         } />
 
-        {/* SECURE ADMIN ROUTE (Requires Login + is_admin = 1) */}
+        {/* SECURE ADMIN ROUTE (Database-Backed Session Timer) */}
+        {/* Note: AdminDashboard.jsx already checks for is_admin === 1 internally! */}
         <Route path="/admin" element={
-          <ProtectedRoute requireAdmin={true}>
+          <SessionGuard>
             <AdminDashboard />
-          </ProtectedRoute>
+          </SessionGuard>
         } />
       </Routes>
     </Router>
