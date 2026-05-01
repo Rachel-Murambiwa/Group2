@@ -14,7 +14,6 @@ const BorrowerFeed = () => {
     const fetchVaults = async () => {
       try {
         const token = localStorage.getItem('token');
-        // FIXED URL: Removed the extra /api/
         const response = await fetch('http://194.147.58.241:8091/vaults/get_available.php', {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -25,8 +24,6 @@ const BorrowerFeed = () => {
         
         if (response.ok) {
           setVaults(data.vaults || []);
-        } else {
-          console.error("Failed to fetch vaults:", data.error);
         }
       } catch (error) {
         console.error("Connection error:", error);
@@ -113,7 +110,7 @@ const BorrowerFeed = () => {
 };
 
 // -------------------------------------------------------------------------
-// 2. COMPONENT: Lender Portfolio UI (Responsive & Live)
+// 2. COMPONENT: Lender Portfolio UI (ROI Tracking Enabled)
 // -------------------------------------------------------------------------
 const LenderPortfolio = () => {
   const [formData, setFormData] = useState({ amount: '', interest: '', duration: '' });
@@ -121,83 +118,43 @@ const LenderPortfolio = () => {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // NEW: State to hold the live data from the database
   const [portfolio, setPortfolio] = useState({
-    stats: { total_deployed: 0, projected_returns: 0, active_count: 0, paid_count: 0 },
+    stats: { total_deployed: 0, realized_profit: 0, active_risk: 0, active_count: 0, paid_count: 0 },
     contracts: []
   });
 
-  // NEW: Function to fetch live stats from the server
   const fetchPortfolioData = async () => {
     const savedUser = localStorage.getItem('user');
     if (!savedUser) return;
     
     const user = JSON.parse(savedUser);
-    const userId = user.id || user.userID;
+    const userId = user.id;
     
     try {
-      // FIXED URL: Removed the extra /api/
       const response = await fetch(`http://194.147.58.241:8091/vaults/get_lender_stats.php?userID=${userId}`);
       const data = await response.json();
-      
       if (response.ok) {
         setPortfolio(data);
-      } else {
-        console.error("Failed to load portfolio:", data.error);
       }
     } catch (err) {
       console.error("Connection error while fetching portfolio", err);
     }
   };
 
-  // Run the fetch function as soon as the Lender tab loads
   useEffect(() => {
     fetchPortfolioData();
   }, []);
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    setMessage('');
-    setError('');
-  };
-
   const handleDeployCapital = async (e) => {
     e.preventDefault();
-    setMessage('');
     setError('');
-
-    const amount = Number(formData.amount);
-    const interest = Number(formData.interest);
-    const duration = Number(formData.duration);
-
-    if (!amount || amount <= 0) {
-      setError('Enter an amount greater than zero.');
-      return;
-    }
-
-    if (Number.isNaN(interest) || interest < 0 || interest > 15) {
-      setError('Interest must be between 0 and 15%.');
-      return;
-    }
-
-    if (!duration || duration <= 0) {
-      setError('Enter a duration of at least 1 day.');
-      return;
-    }
-
-    const savedUser = localStorage.getItem('user');
-    const user = savedUser ? JSON.parse(savedUser) : null;
-
-    if (!user?.id && !user?.userID) {
-      setError('Please log in again before deploying capital.');
-      return;
-    }
-
+    setMessage('');
+    
+    const savedUser = JSON.parse(localStorage.getItem('user'));
+    const token = localStorage.getItem('token');
+    
     setIsSubmitting(true);
-
     try {
-      const token = localStorage.getItem('token');
-      // FIXED URL: Removed the extra /api/
       const response = await fetch('http://194.147.58.241:8091/vaults/create.php', {
         method: 'POST',
         headers: { 
@@ -205,28 +162,23 @@ const LenderPortfolio = () => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          userID: user.userID || user.id,
-          amount,
-          interest,
-          duration,
+          userID: savedUser.id,
+          amount: formData.amount,
+          interest: formData.interest,
+          duration: formData.duration,
         }),
       });
 
       const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || 'Could not deploy capital.');
-        return;
+      if (response.ok) {
+        setFormData({ amount: '', interest: '', duration: '' });
+        setMessage('Capital deployed successfully.');
+        fetchPortfolioData();
+      } else {
+        setError(data.error || 'Failed to deploy capital.');
       }
-
-      setFormData({ amount: '', interest: '', duration: '' });
-      setMessage(data.message || 'Capital deployed successfully.');
-      
-      // NEW: Refresh the stats immediately after successful deployment
-      fetchPortfolioData();
-      
     } catch (err) {
-      setError('Cannot connect to server. Please try again.');
+      setError('Cannot connect to server.');
     } finally {
       setIsSubmitting(false);
     }
@@ -243,111 +195,108 @@ const LenderPortfolio = () => {
         </div>
       </div>
 
-      {/* DYNAMIC STATS DISPLAY */}
+      {/* DYNAMIC ROI STATS DISPLAY */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center">
-          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Total Deployed</p>
-          <h4 className="text-2xl md:text-3xl font-bold text-slate-800">
-            <span className="text-base text-slate-400 mr-1">GHS</span>
-            {Number(portfolio.stats.total_deployed).toFixed(2)}
-          </h4>
-        </div>
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center border-l-4 border-l-rich-gold">
-          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Projected Returns</p>
+        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm border-l-4 border-l-green-500">
+          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Total Profit Earned</p>
           <h4 className="text-2xl md:text-3xl font-bold text-green-600">
             <span className="text-base text-green-400 mr-1">+GHS</span>
-            {Number(portfolio.stats.projected_returns).toFixed(2)}
+            {Number(portfolio.stats.realized_profit).toFixed(2)}
           </h4>
         </div>
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center sm:col-span-2 md:col-span-1">
-          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Vault Status</p>
+        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm border-l-4 border-l-rich-gold">
+          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Capital at Risk</p>
+          <h4 className="text-2xl md:text-3xl font-bold text-slate-800">
+            <span className="text-base text-slate-400 mr-1">GHS</span>
+            {Number(portfolio.stats.active_risk).toFixed(2)}
+          </h4>
+        </div>
+        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Portfolio Velocity</p>
           <h4 className="text-lg md:text-xl font-bold text-slate-700">
-            {portfolio.stats.active_count} Active / {portfolio.stats.paid_count} Paid
+            {portfolio.stats.paid_count} Paid <span className="text-slate-300 mx-1">/</span> {portfolio.stats.active_count} Active
           </h4>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
         <div className="lg:col-span-1 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-1 bg-rich-gold"></div>
           <h4 className="text-lg font-bold text-slate-800 mb-5">Create New Vault</h4>
-          
           <form className="space-y-4" onSubmit={handleDeployCapital}>
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Amount (GHS)</label>
-              <input name="amount" value={formData.amount} onChange={handleChange} type="number" min="1" step="0.01" className="w-full p-3 border-2 border-slate-100 rounded-lg bg-slate-50 focus:bg-white focus:border-rich-gold outline-none transition-all font-bold text-slate-700 text-sm" placeholder="e.g. 200" />
-            </div>
+            <input 
+               name="amount" 
+               value={formData.amount} 
+               onChange={(e) => setFormData({...formData, amount: e.target.value})} 
+               type="number" 
+               className="w-full p-3 border-2 border-slate-100 rounded-lg bg-slate-50 text-sm font-bold" 
+               placeholder="Amount (GHS)" 
+               required 
+            />
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Interest (%)</label>
-                <input name="interest" value={formData.interest} onChange={handleChange} type="number" min="0" max="15" step="0.01" className="w-full p-3 border-2 border-slate-100 rounded-lg bg-slate-50 focus:bg-white focus:border-rich-gold outline-none transition-all font-bold text-slate-700 text-sm" placeholder="0 - 15" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Days</label>
-                <input name="duration" value={formData.duration} onChange={handleChange} type="number" min="1" step="1" className="w-full p-3 border-2 border-slate-100 rounded-lg bg-slate-50 focus:bg-white focus:border-rich-gold outline-none transition-all font-bold text-slate-700 text-sm" placeholder="7" />
-              </div>
+              <input 
+                name="interest" 
+                value={formData.interest} 
+                onChange={(e) => setFormData({...formData, interest: e.target.value})} 
+                type="number" 
+                className="w-full p-3 border-2 border-slate-100 rounded-lg bg-slate-50 text-sm font-bold" 
+                placeholder="Interest %" 
+                required 
+              />
+              <input 
+                name="duration" 
+                value={formData.duration} 
+                onChange={(e) => setFormData({...formData, duration: e.target.value})} 
+                type="number" 
+                className="w-full p-3 border-2 border-slate-100 rounded-lg bg-slate-50 text-sm font-bold" 
+                placeholder="Days" 
+                required 
+              />
             </div>
-            
-            {error && <p className="text-xs font-bold text-red-600">{error}</p>}
             {message && <p className="text-xs font-bold text-green-600">{message}</p>}
-            
-            <button disabled={isSubmitting} className="w-full py-3 mt-2 bg-slate-800 text-white font-bold rounded-lg uppercase tracking-wider text-xs hover:bg-rich-gold hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+            {error && <p className="text-xs font-bold text-red-600">{error}</p>}
+            <button disabled={isSubmitting} className="w-full py-3 bg-slate-800 text-white font-bold rounded-lg uppercase text-xs hover:bg-rich-gold transition-all">
               {isSubmitting ? 'Deploying...' : 'Deploy Capital'}
             </button>
           </form>
         </div>
 
-        {/* DYNAMIC CONTRACTS DISPLAY */}
+        {/* DYNAMIC CONTRACTS LIST */}
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
           <h4 className="text-lg font-bold text-slate-800 mb-5">Active Contracts</h4>
           <div className="space-y-4">
             {portfolio.contracts.length === 0 ? (
-              <div className="text-center py-10 text-slate-400 font-medium">
-                You have not deployed any vaults yet.
-              </div>
+              <div className="text-center py-10 text-slate-400 font-medium">No active contracts yet.</div>
             ) : (
               portfolio.contracts.map((inv) => {
-                // Calculate projected return safely
-                const projectedReturn = (inv.amount * (inv.interest / 100)).toFixed(2);
-                
-                // Set UI indicators based on status
-                let statusIcon = '🕒';
-                let statusClass = 'bg-slate-100 text-slate-600';
-                let statusText = 'Pending Approval';
-                
-                if (inv.status === 'active') {
-                  statusIcon = '↻';
-                  statusClass = 'bg-amber-100 text-amber-600';
-                  if (inv.due_date) {
-                    const diffTime = new Date(inv.due_date) - new Date();
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    statusText = diffDays >= 0 ? `Due in ${diffDays} Days` : `Overdue by ${Math.abs(diffDays)} Days`;
-                  } else {
-                    statusText = "Active";
-                  }
-                } else if (inv.status === 'paid') {
-                  statusIcon = '✓';
-                  statusClass = 'bg-green-100 text-green-600';
-                  statusText = 'Completed';
-                }
+                const isPendingConf = inv.status === 'pending_confirmation';
+                const isPaid = inv.status === 'paid';
 
                 return (
-                  <div key={inv.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors gap-4">
+                  <div 
+                    key={inv.id} 
+                    className={`flex flex-col sm:flex-row items-center justify-between p-4 border rounded-xl transition-all ${
+                      isPendingConf ? 'bg-green-50 border-green-200 scale-[1.01]' : 'border-slate-100 hover:bg-slate-50'
+                    }`}
+                  >
                     <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${statusClass}`}>
-                        {statusIcon}
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
+                        isPaid ? 'bg-green-100 text-green-600' : isPendingConf ? 'bg-green-500 text-white' : 'bg-slate-100 text-slate-500'
+                      }`}>
+                        {isPaid ? '✓' : isPendingConf ? '🔔' : '🕒'}
                       </div>
                       <div>
                         <h5 className="font-bold text-slate-800 text-sm">Vault #{inv.id}</h5>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{statusText}</p>
+                        <p className={`text-[10px] font-bold uppercase tracking-wider ${
+                          isPendingConf ? 'text-green-600 animate-pulse' : 'text-slate-400'
+                        }`}>
+                          {isPendingConf ? 'Check MOMO - Borrower Paid' : inv.status}
+                        </p>
                       </div>
                     </div>
-                    <div className="text-left sm:text-right w-full sm:w-auto border-t sm:border-0 pt-2 sm:pt-0">
+                    <div className="text-right">
                       <h5 className="font-bold text-slate-800 text-sm">GHS {inv.amount}</h5>
-                      <p className={`text-[10px] font-bold tracking-wider ${inv.status === 'paid' ? 'text-green-500' : 'text-rich-gold'}`}>
-                        +GHS {projectedReturn}
-                      </p>
+                      <p className="text-[10px] font-bold text-rich-gold">+{inv.interest}% Interest</p>
                     </div>
                   </div>
                 );
@@ -388,7 +337,7 @@ export default function Dashboard() {
     <div className="min-h-screen w-full flex flex-col bg-slate-50 font-sans">
       <header className="flex flex-col md:flex-row justify-between items-center px-6 md:px-10 py-4 bg-white shadow-sm border-b-2 border-slate-200 z-10 gap-4">
         <div className="w-full md:w-auto flex justify-between items-center">
-          <Link to="/dashboard" className="text-ashesi-red text-xl md:text-2xl font-bold tracking-tight hover:text-ashesi-red-dark transition-colors no-underline">
+          <Link to="/dashboard" className="text-ashesi-red text-xl md:text-2xl font-bold tracking-tight no-underline hover:text-ashesi-red-dark transition-colors">
             CharleeDash+
           </Link>
           <div className="md:hidden flex items-center gap-2">
@@ -398,19 +347,19 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="flex bg-slate-100 rounded-full p-1 shadow-inner border border-slate-200 w-full max-w-[300px] md:w-auto">
+        <div className="flex bg-slate-100 rounded-full p-1 shadow-inner border border-slate-200">
           <button 
-            className={`flex-1 md:px-8 py-2 rounded-full font-bold text-[10px] md:text-sm tracking-wide transition-all duration-300 uppercase ${
-              mode === 'borrower' ? 'bg-white text-ashesi-red shadow-sm' : 'bg-transparent text-slate-500'
-            }`}
+            className={`px-8 py-2 rounded-full font-bold text-xs uppercase transition-all ${
+              mode === 'borrower' ? 'bg-white text-ashesi-red shadow-sm' : 'text-slate-500'
+            }`} 
             onClick={() => setMode('borrower')}
           >
             Borrow
           </button>
           <button 
-            className={`flex-1 md:px-8 py-2 rounded-full font-bold text-[10px] md:text-sm tracking-wide transition-all duration-300 uppercase ${
-              mode === 'lender' ? 'bg-white text-rich-gold shadow-sm' : 'bg-transparent text-slate-500'
-            }`}
+            className={`px-8 py-2 rounded-full font-bold text-xs uppercase transition-all ${
+              mode === 'lender' ? 'bg-white text-rich-gold shadow-sm' : 'text-slate-500'
+            }`} 
             onClick={() => setMode('lender')}
           >
             Lend
@@ -418,20 +367,17 @@ export default function Dashboard() {
         </div>
 
         <div className="hidden md:flex items-center gap-4">
-          <Link to="/profile" className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-50 border border-slate-100 hover:border-rich-gold hover:bg-white transition-all no-underline group">
+          <Link to="/profile" className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-50 border border-slate-100 no-underline group hover:border-rich-gold transition-all">
             <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-ashesi-red to-rich-gold flex items-center justify-center text-white font-bold text-[10px] shadow-sm">
               {alias ? alias.charAt(0).toUpperCase() : "?"}
             </div>
-            <span className="font-bold text-sm text-slate-700 tracking-wide group-hover:text-rich-gold transition-colors">
-              {alias || "Loading..."}
-            </span>
+            <span className="font-bold text-sm text-slate-700">{alias || "User"}</span>
           </Link>
-          <button onClick={handleLogout} className="px-4 py-2 bg-transparent border-2 border-slate-200 rounded-lg text-slate-500 font-bold text-[10px] uppercase transition-all hover:bg-red-50 hover:text-red-600">
+          <button onClick={handleLogout} className="px-4 py-2 bg-transparent border-2 border-slate-200 rounded-lg text-slate-500 font-bold text-[10px] uppercase hover:bg-red-50 hover:text-red-600 transition-all">
             Sign Out
           </button>
         </div>
 
-        {/* Mobile Logout Only */}
         <div className="md:hidden w-full">
            <button onClick={handleLogout} className="w-full py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-500 font-bold text-xs uppercase">
             Sign Out

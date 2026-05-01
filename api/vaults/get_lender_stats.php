@@ -1,68 +1,74 @@
 <?php
 // api/vaults/get_lender_stats.php
-
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Methods: GET, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit();
-}
 
 require_once '../db.php';
 
-if (!isset($_GET['userID'])) {
-    http_response_code(400);
-    echo json_encode(["error" => "userID is required."]);
-    exit();
-}
-
-$userID = filter_var($_GET['userID'], FILTER_VALIDATE_INT);
+$userId = isset($_GET['userID']) ? (int)$_GET['userID'] : 0;
 
 try {
     $conn = Database::getInstance();
 
-    // 1. Calculate the high-level stats for the top cards
-    $statsQuery = "
-        SELECT 
-            COALESCE(SUM(amount), 0) AS total_deployed,
-            COALESCE(SUM(amount * (interest / 100)), 0) AS projected_returns,
-            SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_count,
-            SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) AS paid_count
-        FROM vaults 
-        WHERE user_id = ?
-    ";
-    $stmt = $conn->prepare($statsQuery);
-    $stmt->execute([$userID]);
-    $stats = $stmt->fetch(PDO::FETCH_ASSOC);
+    // 1. Total Deployed (Sum of principal in all non-cancelled vaults)
+    $stmt = $conn->prepare("SELECT SUM(amount) FROM vaults WHERE user_id = ? AND status != 'cancelled'");
+    $stmt->execute([$userId]);
+    $totalDeployed = $stmt->fetchColumn() ?: 0;
 
-    // If counts come back null (new user), ensure they are 0
-    $stats['active_count'] = $stats['active_count'] ?? 0;
-    $stats['paid_count'] = $stats['paid_count'] ?? 0;
+    // 2. Realized Profit (Interest from PAID contracts only)
+    $stmt = $conn->prepare("
+        SELECT SUM(lr.amount_to_repay - v.amount) 
+        FROM active_contracts ac
+        JOIN vaults v ON ac.vault_id = v.id
+        JOIN loan_requests lr ON ac.borrower_id = lr.borrower_id AND ac.vault_id = lr.vault_id
+        WHERE v.user_id = ? AND ac.status = 'paid' AND lr.status = 'approved'
+    ");
+    $stmt->execute([$userId]);
+    $realizedProfit = $stmt->fetchColumn() ?: 0;
 
-    // 2. Fetch the list of contracts for the bottom right list
-    $listQuery = "
-        SELECT v.id, v.amount, v.interest, v.duration, v.status, ac.due_date 
-        FROM vaults v
-        LEFT JOIN active_contracts ac ON v.id = ac.vault_id
+    // 3. Active Risk (Principal currently out in 'active', 'overdue', or 'pending_confirmation' status)
+    $stmt = $conn->prepare("
+        SELECT SUM(v.amount) 
+        FROM active_contracts ac
+        JOIN vaults v ON ac.vault_id = v.id
+        WHERE v.user_id = ? AND ac.status IN ('active', 'overdue', 'pending_confirmation')
+    ");
+    $stmt->execute([$userId]);
+    $activeRisk = $stmt->fetchColumn() ?: 0;
+
+    // 4. Get counts for status badges
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM active_contracts ac JOIN vaults v ON ac.vault_id = v.id WHERE v.user_id = ? AND ac.status = 'paid'");
+    $stmt->execute([$userId]);
+    $paidCount = $stmt->fetchColumn();
+
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM active_contracts ac JOIN vaults v ON ac.vault_id = v.id WHERE v.user_id = ? AND ac.status IN ('active', 'overdue')");
+    $stmt->execute([$userId]);
+    $activeCount = $stmt->fetchColumn();
+
+    // 5. Fetch all contracts for the list
+    $stmt = $conn->prepare("
+        SELECT ac.id, v.amount, v.interest, ac.status, ac.due_date 
+        FROM active_contracts ac
+        JOIN vaults v ON ac.vault_id = v.id
         WHERE v.user_id = ?
-        ORDER BY v.created_at DESC
-    ";
-    $stmt = $conn->prepare($listQuery);
-    $stmt->execute([$userID]);
+        ORDER BY ac.id DESC
+    ");
+    $stmt->execute([$userId]);
     $contracts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    http_response_code(200);
     echo json_encode([
-        "stats" => $stats,
+        "stats" => [
+            "total_deployed" => $totalDeployed,
+            "realized_profit" => $realizedProfit,
+            "active_risk" => $activeRisk,
+            "active_count" => $activeCount,
+            "paid_count" => $paidCount
+        ],
         "contracts" => $contracts
     ]);
 
-} catch(PDOException $e) {
+} catch(Exception $e) {
     http_response_code(500);
-    error_log("DB Error in get_lender_stats.php: " . $e->getMessage());
-    echo json_encode(["error" => "Failed to fetch portfolio data."]);
+    echo json_encode(["error" => $e->getMessage()]);
 }
 ?>
