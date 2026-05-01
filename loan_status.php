@@ -5,65 +5,72 @@ api_cors('GET');
 api_require_method('GET');
 require_once 'auth.php';
 
-//Get loanID
-$loanID = api_value($_GET, array('loanID', 'loanId', 'loan_id', 'id'), '');
+//Get requestID or contractID
+$requestID  = api_value($_GET, array('requestID', 'requestId', 'request_id'), '');
+$contractID = api_value($_GET, array('contractID', 'contractId', 'contract_id'), '');
 
-if (empty($loanID)) {
-    api_json(array('success' => false, 'message' => 'Loan ID is required.'), 422);
+if (!empty($requestID)) {
+    //Get loan request status
+    try {
+        $stmt = $pdo->prepare('
+            SELECT lr.*, v.amount, v.interest, v.duration, u.full_name as lender_name 
+            FROM loan_requests lr 
+            JOIN vaults v ON lr.vault_id = v.id 
+            JOIN users u ON v.user_id = u.id 
+            WHERE lr.id = ? AND lr.borrower_id = ?
+        ');
+        $stmt->execute(array($requestID, $loggedInUser['id']));
+        $request = $stmt->fetch();
+    } catch (PDOException $e) {
+        api_json(array('success' => false, 'message' => 'Error finding loan request: ' . $e->getMessage()), 500);
+    }
+
+    if (!$request) {
+        api_json(array('success' => false, 'message' => 'Loan request not found.'), 404);
+    }
+
+    api_json(array(
+        'success' => true,
+        'type' => 'request',
+        'request' => $request,
+    ));
+
+} elseif (!empty($contractID)) {
+    //Get active contract status
+    try {
+        $stmt = $pdo->prepare('
+            SELECT ac.*, v.amount, v.interest, v.duration, u.full_name as lender_name 
+            FROM active_contracts ac 
+            JOIN vaults v ON ac.vault_id = v.id 
+            JOIN users u ON v.user_id = u.id 
+            WHERE ac.id = ? AND ac.borrower_id = ?
+        ');
+        $stmt->execute(array($contractID, $loggedInUser['id']));
+        $contract = $stmt->fetch();
+    } catch (PDOException $e) {
+        api_json(array('success' => false, 'message' => 'Error finding contract: ' . $e->getMessage()), 500);
+    }
+
+    if (!$contract) {
+        api_json(array('success' => false, 'message' => 'Contract not found.'), 404);
+    }
+
+    //Get transactions for this user
+    try {
+        $stmt = $pdo->prepare('SELECT * FROM transactions WHERE user_id = ? ORDER BY created_at DESC');
+        $stmt->execute(array($loggedInUser['id']));
+        $transactions = $stmt->fetchAll();
+    } catch (PDOException $e) {
+        api_json(array('success' => false, 'message' => 'Error fetching transactions: ' . $e->getMessage()), 500);
+    }
+
+    api_json(array(
+        'success' => true,
+        'type' => 'contract',
+        'contract' => $contract,
+        'transactions' => $transactions,
+    ));
+
+} else {
+    api_json(array('success' => false, 'message' => 'Request ID or Contract ID is required.'), 422);
 }
-
-//Find the loan
-try {
-    $stmt = $pdo->prepare('SELECT * FROM Loan WHERE Loan_ID = ?');
-    $stmt->execute(array($loanID));
-    $loan = $stmt->fetch();
-} catch (PDOException $e) {
-    api_json(array('success' => false, 'message' => 'Error finding loan: ' . $e->getMessage()), 500);
-}
-
-if (!$loan) {
-    api_json(array('success' => false, 'message' => 'Loan not found.'), 404);
-}
-
-//Make sure the loan belongs to this user (borrower or lender)
-$userID          = $loggedInUser['User_ID'];
-$isBorrower      = $loan['Borrower_ID'] === $userID;
-$isLender        = $loan['Lender_ID']   === $userID;
-
-if (!$isBorrower && !$isLender) {
-    api_json(array('success' => false, 'message' => 'You do not have access to this loan.'), 403);
-}
-
-//Get repayment schedule for this loan
-try {
-    $stmt = $pdo->prepare('SELECT * FROM RepaymentSchedule WHERE Loan_ID = ? ORDER BY Due_Date ASC');
-    $stmt->execute(array($loanID));
-    $repayments = $stmt->fetchAll();
-} catch (PDOException $e) {
-    api_json(array('success' => false, 'message' => 'Error fetching repayments: ' . $e->getMessage()), 500);
-}
-
-//Get transactions for this loan
-try {
-    $stmt = $pdo->prepare('SELECT * FROM Transactions WHERE Loan_ID = ? ORDER BY Transaction_Date ASC');
-    $stmt->execute(array($loanID));
-    $transactions = $stmt->fetchAll();
-} catch (PDOException $e) {
-    api_json(array('success' => false, 'message' => 'Error fetching transactions: ' . $e->getMessage()), 500);
-}
-
-// Calculate total paid so far
-$totalPaid     = array_sum(array_column($repayments, 'Amount_Due'));
-$amountLeft    = $loan['Amount'] - $totalPaid;
-
-//Respond
-api_json(array(
-    'success'      => true,
-    'loan'         => array_merge(api_loan($loan), array(
-        'totalPaid'       => $totalPaid,
-        'amountLeft'      => max(0, $amountLeft), // Never show negative
-        'role'            => $isBorrower ? 'borrower' : 'lender',
-    )),
-    'repayments'   => api_repayments($repayments),
-    'transactions' => api_transactions($transactions),
-));

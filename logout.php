@@ -3,12 +3,17 @@
 require_once 'db.php';
 api_cors('POST');
 api_require_method('POST');
-require_once 'auth.php';
 
-// Delete the session token — user is now logged out
+$token = api_token();
+
+if (empty($token)) {
+    api_json(array('success' => false, 'message' => 'No token provided.'), 400);
+}
+
+//Delete session
 try {
-    $stmt = $pdo->prepare('DELETE FROM Sessions WHERE User_ID = ?');
-    $stmt->execute(array($loggedInUser['User_ID']));
+    $stmt = $pdo->prepare('DELETE FROM sessions WHERE session_token = ?');
+    $stmt->execute(array($token));
 } catch (PDOException $e) {
     api_json(array('success' => false, 'message' => 'Error logging out: ' . $e->getMessage()), 500);
 }

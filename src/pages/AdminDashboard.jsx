@@ -22,8 +22,13 @@ export default function AdminDashboard() {
 
     const fetchPendingRequests = async () => {
         try {
-            // Pointing to your API folder
-            const response = await fetch('http://194.147.58.241:8091/api/admin/get_requests.php');
+            const token = localStorage.getItem('token');
+            const response = await fetch('http://localhost:8091/admin_dashboard.php', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
             const data = await response.json();
             
             if (response.ok) {
@@ -43,9 +48,13 @@ export default function AdminDashboard() {
         
         setActionLoading(requestID);
         try {
-            const response = await fetch('http://194.147.58.241:8091/api/admin/loan_action.php', {
+            const token = localStorage.getItem('token');
+            const response = await fetch('http://localhost:8091/admin_loan_action.php', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({ 
                     requestID: requestID, 
                     action: actionType // 'approve' or 'reject'
@@ -70,6 +79,7 @@ export default function AdminDashboard() {
 
     const handleSignOut = () => {
         localStorage.removeItem('user');
+        localStorage.removeItem('token');
         navigate('/');
     };
 

@@ -5,55 +5,53 @@ api_cors('POST');
 api_require_method('POST');
 
 //Read input
-$body  = api_input();
-$email = trim(api_value($body, array('email', 'Email'), ''));
-$code  = trim(api_value($body, array('code', 'verificationCode', 'verification_code'), ''));
+$body = api_input();
+$phone = trim(api_value($body, array('phone', 'phoneNumber', 'phone_number'), ''));
+$otpCode = trim(api_value($body, array('otp', 'otpCode', 'otp_code', 'code'), ''));
 
-if (empty($email) || empty($code)) {
-    api_json(array('success' => false, 'message' => 'Email and code are required.'), 400);
+//Validate
+if (empty($phone) || empty($otpCode)) {
+    api_json(array('success' => false, 'message' => 'Phone number and OTP code are required.'), 422);
 }
 
-//Find verification record
+//Find user
 try {
-    $stmt = $pdo->prepare('
-        SELECT Verification_Code, Expiry_Date
-        FROM Verification
-        WHERE Email = ?
-        ORDER BY Expiry_Date DESC
-        LIMIT 1
-    ');
-    $stmt->execute(array($email));
-    $record = $stmt->fetch();
+    $stmt = $pdo->prepare('SELECT * FROM users WHERE phone = ?');
+    $stmt->execute(array($phone));
+    $user = $stmt->fetch();
 } catch (PDOException $e) {
-    api_json(array('success' => false, 'message' => 'Error finding verification record: ' . $e->getMessage()), 500);
+    api_json(array('success' => false, 'message' => 'Error finding user: ' . $e->getMessage()), 500);
 }
 
-if (!$record) {
-    api_json(array('success' => false, 'message' => 'No verification record found for this email.'), 404);
+if (!$user) {
+    api_json(array('success' => false, 'message' => 'User not found.'), 404);
 }
 
-//Check expiry
-$now    = new DateTime();
-$expiry = new DateTime($record['Expiry_Date']);
-
-if ($now > $expiry) {
-    api_json(array('success' => false, 'message' => 'Verification code has expired. Please register again.'), 410);
+if ($user['is_verified']) {
+    api_json(array('success' => false, 'message' => 'User already verified.'), 400);
 }
 
-//Check code matches
-if ($code !== $record['Verification_Code']) {
-    api_json(array('success' => false, 'message' => 'Incorrect verification code.'), 401);
+//Check OTP
+if ($user['otp_code'] !== $otpCode) {
+    api_json(array('success' => false, 'message' => 'Invalid OTP code.'), 400);
 }
 
-//Mark user as verified
+//Check OTP expiry (15 minutes)
+if ($user['otp_created_at'] && strtotime($user['otp_created_at']) < strtotime('-15 minutes')) {
+    api_json(array('success' => false, 'message' => 'OTP code has expired.'), 400);
+}
+
+//Verify user
 try {
-    $stmt = $pdo->prepare('UPDATE Users SET Is_Verified = TRUE WHERE Email = ?');
-    $stmt->execute(array($email));
+    $stmt = $pdo->prepare('UPDATE users SET is_verified = 1, otp_code = NULL, otp_created_at = NULL WHERE id = ?');
+    $stmt->execute(array($user['id']));
 } catch (PDOException $e) {
     api_json(array('success' => false, 'message' => 'Error verifying user: ' . $e->getMessage()), 500);
 }
 
+//Respond
 api_json(array(
     'success' => true,
-    'message' => 'Email verified successfully! You can now log in.',
+    'message' => 'Phone number verified successfully!',
+    'userID' => $user['id'],
 ));

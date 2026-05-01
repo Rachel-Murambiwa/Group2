@@ -1,45 +1,45 @@
 <?php
-// Rules:
-// - Default neutral value: 5.0
-// - On repayment:          increase by 0.5 (max 10)
-// - On default (late):     decrease by 1.0 (min 0)
+// Credit scoring system for the new schema
+// Since the users table doesn't have a credit_score field,
+// we'll calculate it based on transaction history
 
-//when a user successfully repays
-function increaseCredit($pdo, $userID) {
+function calculateCreditScore($pdo, $userId) {
     try {
-        $stmt = $pdo->prepare('SELECT Credit_Score FROM Users WHERE User_ID = ?');
-        $stmt->execute(array($userID));
-        $user  = $stmt->fetch();
-        $score = $user['Credit_Score'] ?? 5.0;
+        // Get user's transaction history
+        $stmt = $pdo->prepare('
+            SELECT type, amount, created_at 
+            FROM transactions 
+            WHERE user_id = ? 
+            ORDER BY created_at DESC
+        ');
+        $stmt->execute(array($userId));
+        $transactions = $stmt->fetchAll();
 
-        // Increase by 0.5, cap at 10
-        $newScore = min(10, $score + 0.5);
+        // Base score
+        $score = 5.0;
 
-        $stmt = $pdo->prepare('UPDATE Users SET Credit_Score = ? WHERE User_ID = ?');
-        $stmt->execute(array($newScore, $userID));
+        // Analyze transactions
+        foreach ($transactions as $transaction) {
+            switch ($transaction['type']) {
+                case 'repayment':
+                    $score += 0.5; // Increase for on-time repayments
+                    break;
+                case 'repayment_late':
+                    $score -= 1.0; // Decrease for late repayments
+                    break;
+                case 'loan_disbursed':
+                    // Neutral - just taking a loan doesn't affect score
+                    break;
+            }
+        }
 
-        return $newScore;
+        // Cap between 0 and 10
+        return max(0, min(10, $score));
     } catch (PDOException $e) {
-        return null;
+        return 5.0; // Default score on error
     }
 }
 
-//when a user defaults on a loan
-function decreaseCredit($pdo, $userID) {
-    try {
-        $stmt = $pdo->prepare('SELECT Credit_Score FROM Users WHERE User_ID = ?');
-        $stmt->execute(array($userID));
-        $user  = $stmt->fetch();
-        $score = $user['Credit_Score'] ?? 5.0;
-
-        // Decrease by 1.0, floor at 0
-        $newScore = max(0, $score - 1.0);
-
-        $stmt = $pdo->prepare('UPDATE Users SET Credit_Score = ? WHERE User_ID = ?');
-        $stmt->execute(array($newScore, $userID));
-
-        return $newScore;
-    } catch (PDOException $e) {
-        return null;
-    }
+function getCreditScore($pdo, $userId) {
+    return calculateCreditScore($pdo, $userId);
 }

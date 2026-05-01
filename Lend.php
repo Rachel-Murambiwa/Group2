@@ -6,69 +6,43 @@ api_require_method('POST');
 require_once 'auth.php';
 
 //Read input
-$body   = api_input();
-$loanID = api_value($body, array('loanID', 'loanId', 'loan_id', 'id'), '');
-$interestRate = api_value($body, array('interestRate', 'interest_rate', 'rate'), '');
+$body     = api_input();
+$amount   = api_value($body, array('amount', 'loanAmount', 'loan_amount'), '');
+$interest = api_value($body, array('interest', 'interestRate', 'interest_rate'), '');
+$duration = api_value($body, array('duration', 'durationMonths', 'duration_months'), '');
 
-if (empty($loanID)) {
-    api_json(array('success' => false, 'message' => 'Loan ID is required.'), 422);
+//Validate
+$errors = array();
+if (empty($amount))   $errors[] = 'Amount is required.';
+if (empty($interest)) $errors[] = 'Interest rate is required.';
+if (empty($duration)) $errors[] = 'Duration is required.';
+if ($amount <= 0)     $errors[] = 'Amount must be greater than zero.';
+if ($interest <= 0)   $errors[] = 'Interest rate must be greater than zero.';
+if ($duration <= 0)   $errors[] = 'Duration must be greater than zero.';
+
+if (!empty($errors)) {
+    api_json(array('success' => false, 'message' => implode(' ', $errors), 'errors' => $errors), 422);
 }
 
-if (empty($interestRate) || $interestRate <= 0) {
-    api_json(array('success' => false, 'message' => 'Interest rate is required and must be greater than zero.'), 422);
-}
-
-//Find the loan
+//Create vault (lending offer)
 try {
-    $stmt = $pdo->prepare('SELECT * FROM Loan WHERE Loan_ID = ?');
-    $stmt->execute(array($loanID));
-    $loan = $stmt->fetch();
-} catch (PDOException $e) {
-    api_json(array('success' => false, 'message' => 'Error finding loan: ' . $e->getMessage()), 500);
-}
-
-if (!$loan) {
-    api_json(array('success' => false, 'message' => 'Loan not found.'), 404);
-}
-
-//Only admin-approved loans can be funded by lenders.
-if ($loan['Loan_Status'] !== 'approved') {
-    api_json(array('success' => false, 'message' => 'This loan must be approved by admin before it can be funded.'), 400);
-}
-
-//Lender cannot fund their own loan
-if ($loan['Borrower_ID'] === $loggedInUser['User_ID']) {
-    api_json(array('success' => false, 'message' => 'You cannot fund your own loan request.'), 400);
-}
-
-//Update loan and record transaction
-try {
-    $dateDisbursed = date('Y-m-d');
-
     $stmt = $pdo->prepare('
-        UPDATE Loan SET Lender_ID = ?, Interest_Rate = ?, Loan_Status = "disbursed", Date_Disbursed = ?
-        WHERE Loan_ID = ?
+        INSERT INTO vaults (user_id, amount, interest, duration, status, created_at)
+        VALUES (?, ?, ?, ?, "available", NOW())
     ');
-    $stmt->execute(array($loggedInUser['User_ID'], $interestRate, $dateDisbursed, $loanID));
-
-    $stmt = $pdo->prepare('INSERT INTO Transactions (Transaction_Type, Loan_ID, Transaction_Date) VALUES ("loan release", ?, ?)');
-    $stmt->execute(array($loanID, $dateDisbursed));
+    $stmt->execute(array($loggedInUser['id'], $amount, $interest, $duration));
+    $vaultId = $pdo->lastInsertId();
 } catch (PDOException $e) {
-    api_json(array('success' => false, 'message' => 'Error funding loan: ' . $e->getMessage()), 500);
+    api_json(array('success' => false, 'message' => 'Error creating vault: ' . $e->getMessage()), 500);
 }
 
 //Respond
 api_json(array(
-    'success'       => true,
-    'message'       => 'Loan funded successfully!',
-    'loanID'        => $loanID,
-    'amount'        => $loan['Amount'],
-    'interestRate'  => $interestRate,
-    'dateDisbursed' => $dateDisbursed,
-    'loan'          => api_loan(array_merge($loan, array(
-        'Lender_ID' => $loggedInUser['User_ID'],
-        'Interest_Rate' => $interestRate,
-        'Loan_Status' => 'disbursed',
-        'Date_Disbursed' => $dateDisbursed,
-    ))),
-));
+    'success' => true,
+    'message' => 'Vault created successfully! Users can now request loans from your vault.',
+    'vaultId' => $vaultId,
+    'amount'  => $amount,
+    'interest' => $interest,
+    'duration' => $duration,
+    'status'  => 'available',
+), 201);

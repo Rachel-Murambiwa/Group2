@@ -7,17 +7,19 @@ require_once 'auth.php';
 
 try {
     $stmt = $pdo->prepare('
-        SELECT * FROM Loan
-        WHERE Loan_Status = "approved" AND Borrower_ID <> ?
-        ORDER BY Date_Requested DESC
+        SELECT v.*, u.full_name as lender_name, u.alias as lender_alias 
+        FROM vaults v 
+        JOIN users u ON v.user_id = u.id 
+        WHERE v.status = "available" AND v.user_id != ?
+        ORDER BY v.created_at DESC
     ');
-    $stmt->execute(array($loggedInUser['User_ID']));
-    $loans = $stmt->fetchAll();
+    $stmt->execute(array($loggedInUser['id']));
+    $vaults = $stmt->fetchAll();
 } catch (PDOException $e) {
-    api_json(array('success' => false, 'message' => 'Error fetching available loans: ' . $e->getMessage()), 500);
+    api_json(array('success' => false, 'message' => 'Error fetching available vaults: ' . $e->getMessage()), 500);
 }
 
 api_json(array(
     'success' => true,
-    'loans'   => api_loans($loans),
+    'vaults'  => $vaults,
 ));
