@@ -1,6 +1,5 @@
 <?php
-date_default_timezone_set('Africa/Accra');
-// 1. HEADERS (Must be at the very top)
+// 1. HEADERS (Must be at the ABSOLUTE top, before any requires or logic)
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
@@ -11,26 +10,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-// 2. DB CONNECTION
-$host = "db"; 
-$db_name = "charleedash_db";
-$username = "root";
-$password = "Chacha@1583";
+// 2. SETUP & DB CONNECTION
+date_default_timezone_set('Africa/Accra');
+require_once '../../db.php'; // Go up two folders to find the Singleton
 
 try {
-    $conn = new PDO("mysql:host=$host;dbname=$db_name", $username, $password);
-    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch(PDOException $e) {
+    // Safely grab the single connection
+    $conn = Database::getInstance();
+} catch(Exception $e) {
     http_response_code(500);
     echo json_encode(["error" => "DB Connection Failed"]);
     exit();
 }
 
+// 3. GET DATA FROM REACT
 $data = json_decode(file_get_contents("php://input"));
 
 if(!empty($data->phone) && !empty($data->otp)) {
     
-    // 3. FETCH USER AND OTP TIMESTAMP
+    // 4. FETCH USER AND OTP TIMESTAMP
     $query = "SELECT otp_code, otp_created_at FROM users WHERE phone = :phone LIMIT 1";
     $stmt = $conn->prepare($query);
     $stmt->bindParam(":phone", $data->phone);
@@ -56,6 +54,7 @@ if(!empty($data->phone) && !empty($data->otp)) {
             $updateStmt->bindParam(":phone", $data->phone);
             $updateStmt->execute();
 
+            http_response_code(200);
             echo json_encode(["message" => "Account verified!"]);
         } else {
             http_response_code(401);
@@ -65,5 +64,8 @@ if(!empty($data->phone) && !empty($data->otp)) {
         http_response_code(404);
         echo json_encode(["error" => "User not found."]);
     }
+} else {
+    http_response_code(400);
+    echo json_encode(["error" => "Phone and OTP are required."]);
 }
 ?>

@@ -1,5 +1,5 @@
 <?php
-// Timezone Sync (Crucial!)
+// Timezone Sync
 date_default_timezone_set('Africa/Accra');
 
 // 1. HEADERS - The CORS Gatekeeper
@@ -13,16 +13,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-// 2. DB CONNECTION
-$host = "db"; 
-$db_name = "charleedash_db";
-$username = "root";
-$password = "Chacha@1583";
+// 2. DATABASE CONNECTION (Using the Singleton ONLY)
+require_once '../../db.php';
 
 try {
-    $conn = new PDO("mysql:host=$host;dbname=$db_name", $username, $password);
-    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch(PDOException $e) {
+    // This securely grabs the connection from your Database class
+    $conn = Database::getInstance();
+} catch(Exception $e) {
     http_response_code(500);
     echo json_encode(["error" => "Database connection failed"]);
     exit();
@@ -59,7 +56,7 @@ if(!empty($data->phone) && !empty($data->password)) {
             http_response_code(200);
             echo json_encode([
                 "message" => "Login successful",
-                "user" => $user // We send the user data back so React can display the Alias!
+                "user" => $user 
             ]);
             
         } else {
@@ -74,6 +71,6 @@ if(!empty($data->phone) && !empty($data->password)) {
     }
 } else {
     http_response_code(400);
-    echo json_encode(["error" => "Incomplete data."]);
+    echo json_encode(["error" => "Incomplete data. Phone and password are required."]);
 }
 ?>

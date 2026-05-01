@@ -1,7 +1,5 @@
 <?php
-date_default_timezone_set('Africa/Accra');
-
-// 1. HEADERS - Essential for React to talk to PHP
+// 1. HEADERS - Essential for React to talk to PHP (Must be at the absolute top)
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
@@ -12,16 +10,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-// 2. DB CONNECTION
-$host = "db"; 
-$db_name = "charleedash_db";
-$username = "root";
-$password = "Chacha@1583";
+// 2. DB CONNECTION & SETUP
+require_once '../../db.php';
+date_default_timezone_set('Africa/Accra');
 
 try {
-    $conn = new PDO("mysql:host=$host;dbname=$db_name", $username, $password);
-    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch(PDOException $e) {
+    // Get the single, secure connection
+    $conn = Database::getInstance();
+} catch(Exception $e) {
     http_response_code(500);
     echo json_encode(["error" => "Database connection failed"]);
     exit();
@@ -45,7 +41,7 @@ if(!empty($data->phone) && !empty($data->fullName) && !empty($data->password)) {
 
     if ($existingUser) {
         if ($existingUser['is_verified'] == 1) {
-            http_response_code(409);
+            http_response_code(409); // 409 Conflict
             echo json_encode(["error" => "This number is already verified. Please log in."]);
             exit();
         } else {
