@@ -1,5 +1,4 @@
 <?php
-// db.php (in your root folder)
 class Database {
     private static $instance = null;
     private $conn;
@@ -21,4 +20,3 @@ class Database {
         return self::$instance->conn;
     }
 }
-?>
