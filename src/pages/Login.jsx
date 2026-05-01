@@ -6,7 +6,7 @@ export default function Login() {
   const navigate = useNavigate(); 
   
   const [formData, setFormData] = useState({
-    phone: '', // Changed from email
+    phone: '', 
     password: '',
   });
   
@@ -23,13 +23,12 @@ export default function Login() {
     e.preventDefault();
     const newErrors = {};
 
-    // Domain validation check (Updated to Phone)
+    // Domain validation check for Ghanaian numbers
     const phoneRegex = /^0\d{9}$/;
     if (!phoneRegex.test(formData.phone)) {
       newErrors.phone = 'Please enter a valid 10-digit Ghanaian number.';
     }
     
-    // Basic password presence check
     if (!formData.password) {
       newErrors.password = 'Password is required.';
     }
@@ -40,7 +39,6 @@ export default function Login() {
     }
 
     try {
-      // Connect to the upcoming PHP backend
       const response = await fetch('http://194.147.58.241:8091/auth/login.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -50,17 +48,23 @@ export default function Login() {
       const data = await response.json();
 
       if (response.ok) {
-        // SUCCESS: Save user session data and token to localStorage
+        // 1. Save user session data (now including is_admin) and token
         localStorage.setItem('user', JSON.stringify(data.user));
         localStorage.setItem('token', data.token);
-        // Push them into the application dashboard!
-        navigate('/dashboard');
+
+        // 2. SMART REDIRECT: Check the is_admin flag from the backend
+        if (data.user && data.user.is_admin === 1) {
+          // Send Admins directly to the management panel
+          navigate('/admin');
+        } else {
+          // Send standard Students to the borrower/lender dashboard
+          navigate('/dashboard');
+        }
       } else {
-        // Show specific error from backend (e.g., "Invalid password" or "Account not verified")
         setErrors({ auth: data.error || "Login failed." });
       }
     } catch (err) {
-      setErrors({ auth: "Cannot connect to server. Is XAMPP running?" });
+      setErrors({ auth: "Cannot connect to server. Please try again later." });
     }
   };
 
