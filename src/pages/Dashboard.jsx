@@ -13,7 +13,13 @@ const BorrowerFeed = () => {
   useEffect(() => {
     const fetchVaults = async () => {
       try {
-        const response = await fetch('http://194.147.58.241:8091/vaults/get_available.php');
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://localhost:8091/available_loans.php', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
         const data = await response.json();
         
         if (response.ok) {
@@ -165,10 +171,13 @@ const LenderPortfolio = () => {
     setIsSubmitting(true);
 
     try {
-      // UPDATED TO LIVE IP
-      const response = await fetch('http://194.147.58.241:8091/vaults/create.php', {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:8091/Lend.php', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           userID: user.userID || user.id,
           amount,
@@ -298,6 +307,7 @@ export default function Dashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
     navigate('/');
   };
 

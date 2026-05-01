@@ -41,7 +41,7 @@ export default function Login() {
 
     try {
       // Connect to the upcoming PHP backend
-      const response = await fetch('http://194.147.58.241:8091/auth/login.php', {
+      const response = await fetch('http://localhost:8091/login.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -50,8 +50,9 @@ export default function Login() {
       const data = await response.json();
 
       if (response.ok) {
-        // SUCCESS: Save user session data (like their Alias) to localStorage
+        // SUCCESS: Save user session data and token to localStorage
         localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('token', data.token);
         // Push them into the application dashboard!
         navigate('/dashboard');
       } else {

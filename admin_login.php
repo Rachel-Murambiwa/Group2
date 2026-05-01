@@ -4,9 +4,9 @@ require_once 'db.php';
 api_cors('POST');
 api_require_method('POST');
 
-// To generate a new password hash, run: echo password_hash('yourpassword', PASSWORD_DEFAULT);
+// Admin credentials
 $adminUsername = 'admin';
-$adminPassword = 'Admin@1234'; // Change this to your desired password
+$adminPassword = 'Admin@1234';
 
 //Read input
 $body     = api_input();
@@ -23,30 +23,29 @@ if ($username !== $adminUsername || $password !== $adminPassword) {
     api_json(array('success' => false, 'message' => 'Invalid admin credentials.'), 401);
 }
 
-//Generate admin token and save to Sessions table
+//Generate admin token and save to sessions table
 try {
     $token     = 'ADMIN_' . bin2hex(random_bytes(32));
     $createdAt = date('Y-m-d H:i:s');
     $expiresAt = date('Y-m-d H:i:s', strtotime('+24 hours'));
 
-    //Make sure Sessions table exists
+    //Make sure sessions table exists
     $pdo->exec('
-        CREATE TABLE IF NOT EXISTS Sessions (
+        CREATE TABLE IF NOT EXISTS sessions (
             session_token VARCHAR(70) PRIMARY KEY,
-            User_ID       VARCHAR(8)  NOT NULL,
+            user_id       INT         NULL,
+            admin_user    VARCHAR(50) NULL,
             created_at    DATETIME    NOT NULL,
             expires_at    DATETIME    NOT NULL
         )
     ');
 
-    $pdo->exec('ALTER TABLE Sessions MODIFY session_token VARCHAR(70) NOT NULL');
-
     // Delete old admin sessions
-    $stmt = $pdo->prepare("DELETE FROM Sessions WHERE User_ID = 'ADMIN'");
+    $stmt = $pdo->prepare("DELETE FROM sessions WHERE admin_user = 'admin'");
     $stmt->execute();
 
     // Save new admin session
-    $stmt = $pdo->prepare('INSERT INTO Sessions (session_token, User_ID, created_at, expires_at) VALUES (?, "ADMIN", ?, ?)');
+    $stmt = $pdo->prepare('INSERT INTO sessions (session_token, admin_user, created_at, expires_at) VALUES (?, "admin", ?, ?)');
     $stmt->execute(array($token, $createdAt, $expiresAt));
 } catch (PDOException $e) {
     api_json(array('success' => false, 'message' => 'Error creating session: ' . $e->getMessage()), 500);

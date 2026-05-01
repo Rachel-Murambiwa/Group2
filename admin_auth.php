@@ -12,9 +12,9 @@ if (!str_starts_with($adminToken, 'ADMIN_')) {
     api_json(array('success' => false, 'message' => 'Access denied. Admin token required.'), 403);
 }
 
-// Check token exists in Sessions table
+// Check token exists in sessions table
 try {
-    $stmt = $pdo->prepare("SELECT * FROM Sessions WHERE session_token = ? AND User_ID = 'ADMIN'");
+    $stmt = $pdo->prepare("SELECT * FROM sessions WHERE session_token = ? AND admin_user = 'admin'");
     $stmt->execute(array($adminToken));
     $session = $stmt->fetch();
 } catch (PDOException $e) {

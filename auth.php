@@ -7,7 +7,7 @@ if (empty($token)) {
 }
 
 try {
-    $stmt = $pdo->prepare('SELECT * FROM Sessions WHERE session_token = ?');
+    $stmt = $pdo->prepare('SELECT * FROM sessions WHERE session_token = ?');
     $stmt->execute(array($token));
     $session = $stmt->fetch();
 } catch (PDOException $e) {
@@ -23,8 +23,8 @@ if (new DateTime() > new DateTime($session['expires_at'])) {
 }
 
 try {
-    $stmt = $pdo->prepare('SELECT * FROM Users WHERE User_ID = ?');
-    $stmt->execute(array($session['User_ID']));
+    $stmt = $pdo->prepare('SELECT * FROM users WHERE id = ?');
+    $stmt->execute(array($session['user_id']));
     $loggedInUser = $stmt->fetch();
 } catch (PDOException $e) {
     api_json(array('success' => false, 'message' => 'Error fetching user: ' . $e->getMessage()), 500);

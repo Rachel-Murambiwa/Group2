@@ -6,11 +6,11 @@ api_require_method('POST');
 require_once 'admin_auth.php';
 
 $body = api_input();
-$loanID = api_value($body, array('loanID', 'loanId', 'loan_id', 'id'), '');
+$requestID = api_value($body, array('requestID', 'requestId', 'request_id', 'id'), '');
 $action = strtolower(trim($body['action'] ?? 'approve'));
 
-if (empty($loanID)) {
-    api_json(array('success' => false, 'message' => 'Loan ID is required.'), 422);
+if (empty($requestID)) {
+    api_json(array('success' => false, 'message' => 'Request ID is required.'), 422);
 }
 
 if (!in_array($action, array('approve', 'reject'))) {
@@ -18,32 +18,65 @@ if (!in_array($action, array('approve', 'reject'))) {
 }
 
 try {
-    $stmt = $pdo->prepare('SELECT * FROM Loan WHERE Loan_ID = ?');
-    $stmt->execute(array($loanID));
-    $loan = $stmt->fetch();
+    $stmt = $pdo->prepare('
+        SELECT lr.*, v.amount, v.interest, v.duration 
+        FROM loan_requests lr 
+        JOIN vaults v ON lr.vault_id = v.id 
+        WHERE lr.id = ?
+    ');
+    $stmt->execute(array($requestID));
+    $request = $stmt->fetch();
 } catch (PDOException $e) {
-    api_json(array('success' => false, 'message' => 'Error finding loan: ' . $e->getMessage()), 500);
+    api_json(array('success' => false, 'message' => 'Error finding loan request: ' . $e->getMessage()), 500);
 }
 
-if (!$loan) {
-    api_json(array('success' => false, 'message' => 'Loan not found.'), 404);
+if (!$request) {
+    api_json(array('success' => false, 'message' => 'Loan request not found.'), 404);
 }
 
-if ($loan['Loan_Status'] !== 'pending') {
-    api_json(array('success' => false, 'message' => 'Only pending loans can be approved or rejected.'), 400);
+if ($request['status'] !== 'pending') {
+    api_json(array('success' => false, 'message' => 'Only pending loan requests can be approved or rejected.'), 400);
 }
 
 $newStatus = $action === 'approve' ? 'approved' : 'rejected';
 
 try {
-    $stmt = $pdo->prepare('UPDATE Loan SET Loan_Status = ? WHERE Loan_ID = ?');
-    $stmt->execute(array($newStatus, $loanID));
+    $pdo->beginTransaction();
+    
+    // Update loan request status
+    $stmt = $pdo->prepare('UPDATE loan_requests SET status = ? WHERE id = ?');
+    $stmt->execute(array($newStatus, $requestID));
+    
+    if ($action === 'approve') {
+        // Create active contract
+        $dueDate = date('Y-m-d', strtotime('+' . $request['duration'] . ' months'));
+        
+        $stmt = $pdo->prepare('
+            INSERT INTO active_contracts (vault_id, borrower_id, due_date, status)
+            VALUES (?, ?, ?, "active")
+        ');
+        $stmt->execute(array($request['vault_id'], $request['borrower_id'], $dueDate));
+        
+        // Update vault status to active
+        $stmt = $pdo->prepare('UPDATE vaults SET status = "active" WHERE id = ?');
+        $stmt->execute(array($request['vault_id']));
+        
+        // Record loan disbursement transaction
+        $stmt = $pdo->prepare('
+            INSERT INTO transactions (user_id, type, amount, created_at)
+            VALUES (?, "loan_disbursed", ?, NOW())
+        ');
+        $stmt->execute(array($request['borrower_id'], $request['amount']));
+    }
+    
+    $pdo->commit();
 } catch (PDOException $e) {
-    api_json(array('success' => false, 'message' => 'Error updating loan: ' . $e->getMessage()), 500);
+    $pdo->rollback();
+    api_json(array('success' => false, 'message' => 'Error updating loan request: ' . $e->getMessage()), 500);
 }
 
 api_json(array(
     'success' => true,
-    'message' => 'Loan ' . $newStatus . ' successfully.',
-    'loan' => api_loan(array_merge($loan, array('Loan_Status' => $newStatus))),
+    'message' => 'Loan request ' . $newStatus . ' successfully.',
+    'request' => array_merge($request, array('status' => $newStatus)),
 ));

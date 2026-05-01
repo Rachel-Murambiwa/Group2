@@ -1,5 +1,5 @@
 <?php
-$baseURL = 'http://localhost/backend';
+$baseURL = 'http://localhost';
 $passed = 0;
 $failed = 0;
 
@@ -36,82 +36,58 @@ function test(string $name, bool $passed_condition, array $response): void {
 }
 
 echo "\n.............\n";
-echo "ChaleDash+ Registration Test\n";
+echo "ChaleDash+ Registration Test (New Schema)\n";
 echo ".............\n\n";
 
 # Test 1: Successful registration
 $res = post("$baseURL/register.php", [
-    'firstName' => 'Elizabeth',
-    'lastName' => 'Leiyagu',
-    'email' => 'elizabeth.leiyagu@ashesi.edu.gh',
+    'fullName' => 'Elizabeth Leiyagu',
     'phoneNumber' => '0241234567',
-    'bankName' => 'Ecobank',
-    'bankAccount' => '1234567890',
     'password' => 'SecurePass1',
 ]);
 test('Successful registration', $res['code'] === 201 && $res['body']['success'] === true, $res);
 
-# Duplicate email
+# Duplicate phone
 $res = post("$baseURL/register.php", [
-    'firstName' => 'Mimi',
-    'lastName' => 'Kamau',
-    'email' => 'elizabeth.leiyagu@ashesi.edu.gh',
-    'phoneNumber' => '0249999999',
-    'bankName' => 'Ecobank',
-    'bankAccount' => '0987654321',
+    'fullName' => 'Mimi Kamau',
+    'phoneNumber' => '0241234567',
     'password' => 'SecurePass1',
 ]);
-test('Reject duplicate email', $res['code'] === 409, $res);
-
-# Non-Ashesi email
-$res = post("$baseURL/register.php", [
-    'firstName' => 'Milcah',
-    'lastName' => 'Abuk',
-    'email' => 'milcah.abuk@gmail.com',
-    'phoneNumber' => '0551234567',
-    'bankName' => 'Stanbic',
-    'bankAccount' => '1122334455',
-    'password' => 'SecurePass1',
-]);
-test('Reject non-Ashesi email', $res['code'] === 422, $res);
+test('Reject duplicate phone', $res['code'] === 409, $res);
 
 # Missing fields
 $res = post("$baseURL/register.php", [
-    'firstName' => 'Nasieku',
+    'fullName' => 'Nasieku',
 ]);
 test('Reject missing fields', $res['code'] === 422, $res);
 
 # Short password
 $res = post("$baseURL/register.php", [
-    'firstName' => 'Nana',
-    'lastName' => 'Kweku',
-    'email' => 'nana.kweku@ashesi.edu.gh',
+    'fullName' => 'Nana Kweku',
     'phoneNumber' => '0271234567',
-    'bankName' => 'Fidelity',
-    'bankAccount' => '5566778899',
     'password' => '123',
 ]);
 test('Reject short password', $res['code'] === 422, $res);
 
 # Wrong verification
 $res = post("$baseURL/verify.php", [
-    'email' => 'kofi.mensah@ashesi.edu.gh',
-    'code' => '000000',
+    'phone' => '0241234567',
+    'otp' => '000000',
 ]);
-test('Reject wrong verification code', $res['code'] === 401, $res);
+test('Reject wrong verification code', $res['code'] === 400, $res);
 
 # No record
 $res = post("$baseURL/verify.php", [
-    'email' => 'nobody@ashesi.edu.gh',
-    'code' => '123456',
+    'phone' => '0999999999',
+    'otp' => '123456',
 ]);
-test('Reject verification for unknown email', $res['code'] === 404, $res);
+test('Reject verification for unknown phone', $res['code'] === 404, $res);
 
 # Missing verification fields
 $res = post("$baseURL/verify.php", [
-    'email' => 'kofi.mensah@ashesi.edu.gh',
+    'phone' => '0241234567',
 ]);
-test('Reject missing verification fields', $res['code'] === 400, $res);
+test('Reject missing verification fields', $res['code'] === 422, $res);
 
 echo "\n............\n";
 echo "Results: $passed passed, $failed failed\n";
