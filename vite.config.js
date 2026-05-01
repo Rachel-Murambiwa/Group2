@@ -10,7 +10,11 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate', 
       devOptions: {
-        enabled: true // This is the magic line that lets us test the PWA locally!
+        enabled: true 
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        navigateFallback: '/index.html' // Essential for React Router on live deployments
       },
       manifest: {
         name: 'CharleeDash+',
