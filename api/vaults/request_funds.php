@@ -1,6 +1,4 @@
 <?php
-// api/vaults/request_funds.php
-
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
@@ -28,8 +26,8 @@ $requestedAmount = filter_var($data['requestedAmount'], FILTER_VALIDATE_FLOAT);
 try {
     $conn = Database::getInstance();
 
-    // 1. Check if the vault exists and get its details (added 'interest' to the SELECT)
-    $stmt = $conn->prepare("SELECT amount, interest, status, user_id FROM vaults WHERE id = ?");
+    // 1. Fetch available_amount
+    $stmt = $conn->prepare("SELECT amount, available_amount, interest, status, user_id FROM vaults WHERE id = ?");
     $stmt->execute([$vaultID]);
     $vault = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -45,31 +43,37 @@ try {
          exit();
     }
 
-    if ($requestedAmount <= 0 || $requestedAmount > $vault['amount']) {
+    // 2. Validate against available_amount, not the total amount!
+    if ($requestedAmount <= 0 || $requestedAmount > $vault['available_amount']) {
         http_response_code(400);
-        echo json_encode(["error" => "Requested amount must be between 0.01 and " . $vault['amount']]);
+        echo json_encode(["error" => "Amount must be between 0.01 and " . $vault['available_amount']]);
         exit();
     }
 
-    $stmt = $conn->prepare("SELECT id FROM loan_requests WHERE vault_id = ? AND borrower_id = ? AND status = 'pending'");
-    $stmt->execute([$vaultID, $borrowerID]);
-    if ($stmt->fetch()) {
-        http_response_code(400);
-        echo json_encode(["error" => "You already have a pending request for this vault."]);
-        exit();
+    // Begin Transaction
+    $conn->beginTransaction();
+
+    try {
+        $amountToRepay = $requestedAmount + ($requestedAmount * ($vault['interest'] / 100));
+
+        // Insert the request
+        $stmt = $conn->prepare("INSERT INTO loan_requests (vault_id, borrower_id, requested_amount, amount_to_repay, status) VALUES (?, ?, ?, ?, 'pending')");
+        $stmt->execute([$vaultID, $borrowerID, $requestedAmount, $amountToRepay]);
+
+        // IMMEDIATELY deduct the requested amount from the vault
+        $stmt = $conn->prepare("UPDATE vaults SET available_amount = available_amount - ? WHERE id = ?");
+        $stmt->execute([$requestedAmount, $vaultID]);
+
+        $conn->commit();
+
+        http_response_code(201);
+        $formattedRepayment = number_format($amountToRepay, 2);
+        echo json_encode(["message" => "Request submitted! You will repay GHS {$formattedRepayment}."]);
+
+    } catch (Exception $e) {
+        $conn->rollBack();
+        throw $e;
     }
-
-    // 2. Calculate the exact Amount to Repay (Principal + Interest)
-    $amountToRepay = $requestedAmount + ($requestedAmount * ($vault['interest'] / 100));
-
-    // 3. Insert the request WITH both requested_amount and amount_to_repay
-    $stmt = $conn->prepare("INSERT INTO loan_requests (vault_id, borrower_id, requested_amount, amount_to_repay, status) VALUES (?, ?, ?, ?, 'pending')");
-    $stmt->execute([$vaultID, $borrowerID, $requestedAmount, $amountToRepay]);
-
-    http_response_code(201);
-    // Format to 2 decimal places for a clean UI message
-    $formattedRepayment = number_format($amountToRepay, 2);
-    echo json_encode(["message" => "Loan request submitted! You will repay GHS {$formattedRepayment} if approved."]);
 
 } catch(PDOException $e) {
     http_response_code(500);

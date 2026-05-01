@@ -1,5 +1,7 @@
 <?php
-// 1. Native CORS Headers (Must be at the absolute top)
+// api/vaults/get_available.php
+
+// 1. Native CORS Headers
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: GET, OPTIONS");
@@ -16,29 +18,26 @@ date_default_timezone_set('Africa/Accra');
 require_once '../db.php';
 
 try {
-    // Securely grab the connection without exposing passwords in this file
     $conn = Database::getInstance();
 
-    // 3. Query the database using the correct 3NF schema columns
-    // (vaults table uses 'user_id', 'interest', and 'duration' now)
-    $query = "SELECT v.id, v.amount, v.interest, v.duration, u.alias 
+    // 3. Query the database using the new available_amount column
+    // We alias it as 'amount' so the React frontend maps it correctly.
+    // We only select vaults where available_amount is strictly greater than 0.
+    $query = "SELECT v.id, v.available_amount AS amount, v.interest, v.duration, u.alias 
               FROM vaults v 
               JOIN users u ON v.user_id = u.id 
-              WHERE v.status = 'available' 
+              WHERE v.status = 'available' AND v.available_amount > 0
               ORDER BY v.created_at DESC";
               
     $stmt = $conn->prepare($query);
     $stmt->execute();
     
-    // Fetch all available vaults as an associative array
     $vaults = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Send the array back to your React frontend
     http_response_code(200);
     echo json_encode(["vaults" => $vaults]);
 
 } catch(PDOException $e) {
-    // Hide the exact SQL error from the frontend for security, but log it for debugging
     http_response_code(500);
     error_log("Database error in get_available.php: " . $e->getMessage());
     echo json_encode(["error" => "Failed to fetch available vaults."]);

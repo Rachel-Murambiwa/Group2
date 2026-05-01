@@ -1,5 +1,7 @@
 <?php
-// 1. Native CORS Headers (Replaces api_cors and api_require_method)
+// api/vaults/create.php
+
+// 1. Native CORS Headers
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
@@ -27,16 +29,15 @@ try {
     exit();
 }
 
-// 3. Read JSON Payload (Replaces api_input)
+// 3. Read JSON Payload
 $data = json_decode(file_get_contents("php://input"), true);
 
-// Extract values safely (Replaces api_value)
 $userID = isset($data['userID']) ? trim($data['userID']) : (isset($data['id']) ? trim($data['id']) : '');
 $amount = isset($data['amount']) ? (float)$data['amount'] : 0;
 $interest = isset($data['interest']) ? (float)$data['interest'] : 0;
 $duration = isset($data['duration']) ? (int)$data['duration'] : 0;
 
-// 4. Validation (Replaces frontend_format_error)
+// 4. Validation
 if ($userID === '') {
     http_response_code(401);
     echo json_encode(["error" => "Please log in again before deploying capital."]);
@@ -62,7 +63,7 @@ if ($duration <= 0) {
 }
 
 try {
-    // 5. Check if user is verified (Using new schema: 'users' table)
+    // 5. Check if user is verified
     $stmt = $conn->prepare('SELECT id, alias FROM users WHERE id = ? AND is_verified = 1 LIMIT 1');
     $stmt->execute([$userID]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -73,22 +74,24 @@ try {
         exit();
     }
 
-    // 6. Insert into vaults table (Using new schema: 'vaults' table)
+    // 6. Insert into vaults table WITH available_amount
     $stmt = $conn->prepare('
-        INSERT INTO vaults (user_id, amount, interest, duration, status) 
-        VALUES (?, ?, ?, ?, "available")
+        INSERT INTO vaults (user_id, amount, available_amount, interest, duration, status) 
+        VALUES (?, ?, ?, ?, ?, "available")
     ');
-    $stmt->execute([$userID, $amount, $interest, $duration]);
+    
+    // We pass $amount TWICE here: once for `amount`, once for `available_amount`
+    $stmt->execute([$userID, $amount, $amount, $interest, $duration]);
     
     $vaultID = $conn->lastInsertId();
 
-    // 7. Success Response (Replaces api_json)
+    // 7. Success Response
     http_response_code(201);
     echo json_encode([
         'message' => 'Capital deployed successfully.',
         'vault' => [
             'id' => (int)$vaultID,
-            'amount' => $amount,
+            'amount' => $amount, // This will be used in React state temporarily
             'interest' => $interest,
             'duration' => $duration,
             'alias' => $user['alias']
