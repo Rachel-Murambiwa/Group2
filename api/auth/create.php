@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // 2. Include the Database Singleton
-require_once '../../db.php';
+require_once '../db.php';
 
 // 3. Read the JSON payload from React
 $data = json_decode(file_get_contents("php://input"));

@@ -1,41 +1,49 @@
 <?php
-date_default_timezone_set('Africa/Accra');
-
+// 1. Native CORS Headers (Must be at the absolute top)
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: GET, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
 
-$host = "db"; 
-$db_name = "charleedash_db";
-$username = "root";
-$password = "Chacha@1583";
+date_default_timezone_set('Africa/Accra');
+
+// 2. Include the Singleton Database Connection
+require_once '../db.php';
 
 try {
-    $conn = new PDO("mysql:host=$host;dbname=$db_name", $username, $password);
-    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    // Securely grab the connection without exposing passwords in this file
+    $conn = Database::getInstance();
 
-    // We use a JOIN here to get the Alias of the person who created the vault!
-    $query = "SELECT v.id, v.amount, v.interest_rate as interest, v.duration_days as duration, u.alias 
+    // 3. Query the database using the correct 3NF schema columns
+    // (vaults table uses 'user_id', 'interest', and 'duration' now)
+    $query = "SELECT v.id, v.amount, v.interest, v.duration, u.alias 
               FROM vaults v 
-              JOIN users u ON v.lender_id = u.id 
+              JOIN users u ON v.user_id = u.id 
               WHERE v.status = 'available' 
               ORDER BY v.created_at DESC";
               
     $stmt = $conn->prepare($query);
     $stmt->execute();
     
+    // Fetch all available vaults as an associative array
     $vaults = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Send the array back to your React frontend
     http_response_code(200);
     echo json_encode(["vaults" => $vaults]);
 
 } catch(PDOException $e) {
+    // Hide the exact SQL error from the frontend for security, but log it for debugging
     http_response_code(500);
-    echo json_encode(["error" => "Database error: " . $e->getMessage()]);
+    error_log("Database error in get_available.php: " . $e->getMessage());
+    echo json_encode(["error" => "Failed to fetch available vaults."]);
+} catch(Exception $e) {
+    http_response_code(500);
+    echo json_encode(["error" => "Database connection failed"]);
 }
 ?>

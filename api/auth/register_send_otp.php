@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // 2. DB CONNECTION & SETUP
-require_once '../../db.php';
+require_once '../db.php';
 date_default_timezone_set('Africa/Accra');
 
 try {

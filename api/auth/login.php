@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // 2. DATABASE CONNECTION (Using the Singleton ONLY)
-require_once '../../db.php';
+require_once '../db.php';
 
 try {
     // This securely grabs the connection from your Database class

@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // 2. SETUP & DB CONNECTION
 date_default_timezone_set('Africa/Accra');
-require_once '../../db.php'; // Go up two folders to find the Singleton
+require_once '../db.php';
 
 try {
     // Safely grab the single connection
