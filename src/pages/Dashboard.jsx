@@ -172,7 +172,7 @@ const LenderPortfolio = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8091/Lend.php', {
+      const response = await fetch('http://194.147.58.241:8091/vaults/create.php', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
