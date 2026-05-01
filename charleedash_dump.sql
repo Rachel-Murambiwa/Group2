@@ -1,11 +1,11 @@
 -- phpMyAdmin SQL Dump
--- version 5.2.1
+-- version 5.2.3
 -- https://www.phpmyadmin.net/
 --
--- Host: 127.0.0.1
--- Generation Time: May 01, 2026 at 02:59 AM
--- Server version: 10.4.32-MariaDB
--- PHP Version: 8.2.12
+-- Host: db
+-- Generation Time: May 01, 2026 at 01:24 AM
+-- Server version: 8.0.45
+-- PHP Version: 8.3.26
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -28,11 +28,11 @@ SET time_zone = "+00:00";
 --
 
 CREATE TABLE `active_contracts` (
-  `id` int(11) NOT NULL,
-  `vault_id` int(11) NOT NULL,
-  `borrower_id` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `vault_id` int NOT NULL,
+  `borrower_id` int NOT NULL,
   `due_date` date NOT NULL,
-  `status` enum('active','completed') DEFAULT 'active'
+  `status` enum('active','completed') COLLATE utf8mb4_general_ci DEFAULT 'active'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -42,11 +42,11 @@ CREATE TABLE `active_contracts` (
 --
 
 CREATE TABLE `loan_requests` (
-  `id` int(11) NOT NULL,
-  `vault_id` int(11) NOT NULL,
-  `borrower_id` int(11) NOT NULL,
-  `status` enum('pending','approved','rejected') DEFAULT 'pending',
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+  `id` int NOT NULL,
+  `vault_id` int NOT NULL,
+  `borrower_id` int NOT NULL,
+  `status` enum('pending','approved','rejected') COLLATE utf8mb4_general_ci DEFAULT 'pending',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -56,11 +56,11 @@ CREATE TABLE `loan_requests` (
 --
 
 CREATE TABLE `transactions` (
-  `id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
-  `type` enum('deposit','withdrawal','loan_disbursed','repayment') NOT NULL,
+  `id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `type` enum('deposit','withdrawal','loan_disbursed','repayment') COLLATE utf8mb4_general_ci NOT NULL,
   `amount` decimal(10,2) NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -70,11 +70,16 @@ CREATE TABLE `transactions` (
 --
 
 CREATE TABLE `users` (
-  `id` int(11) NOT NULL,
-  `phone` varchar(255) NOT NULL,
-  `password` varchar(255) NOT NULL,
-  `alias` varchar(50) NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+  `id` int NOT NULL,
+  `full_name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `phone` varchar(20) COLLATE utf8mb4_general_ci NOT NULL,
+  `email` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `password` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `alias` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
+  `otp_code` varchar(10) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `is_verified` tinyint(1) NOT NULL DEFAULT '0',
+  `otp_created_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -84,13 +89,13 @@ CREATE TABLE `users` (
 --
 
 CREATE TABLE `vaults` (
-  `id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `user_id` int NOT NULL,
   `amount` decimal(10,2) NOT NULL,
   `interest` decimal(5,2) NOT NULL,
-  `duration` int(11) NOT NULL,
-  `status` enum('available','active','paid') DEFAULT 'available',
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+  `duration` int NOT NULL,
+  `status` enum('available','active','paid') COLLATE utf8mb4_general_ci DEFAULT 'available',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -142,31 +147,31 @@ ALTER TABLE `vaults`
 -- AUTO_INCREMENT for table `active_contracts`
 --
 ALTER TABLE `active_contracts`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `loan_requests`
 --
 ALTER TABLE `loan_requests`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `transactions`
 --
 ALTER TABLE `transactions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `vaults`
 --
 ALTER TABLE `vaults`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT;
 
 --
 -- Constraints for dumped tables
